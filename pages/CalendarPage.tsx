@@ -1,7 +1,8 @@
+
 import React, { useState, useMemo } from 'react';
-import { MOCK_CALENDAR_EVENTS } from '../constants';
 import { CalendarEvent } from '../types';
 import { Modal } from '../components/Modal';
+import { useAppContext } from '../context/AppContext';
 
 const eventColors = {
     blue: { bg: 'bg-blue-100', text: 'text-blue-800', border: 'border-blue-500' },
@@ -21,6 +22,8 @@ const GoogleIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
 
 
 export const CalendarPage: React.FC = () => {
+    const { appState } = useAppContext();
+    const { calendarEvents } = appState;
     const [isConnected, setIsConnected] = useState(false);
     const [currentDate, setCurrentDate] = useState(new Date());
     const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
@@ -44,7 +47,7 @@ export const CalendarPage: React.FC = () => {
     }, [currentDate]);
 
     const eventsByDate = useMemo(() => {
-        return MOCK_CALENDAR_EVENTS.reduce((acc, event) => {
+        return calendarEvents.reduce((acc, event) => {
             const date = event.date;
             if (!acc[date]) {
                 acc[date] = [];
@@ -52,7 +55,7 @@ export const CalendarPage: React.FC = () => {
             acc[date].push(event);
             return acc;
         }, {} as Record<string, CalendarEvent[]>);
-    }, []);
+    }, [calendarEvents]);
 
     const handlePrevMonth = () => {
         setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
@@ -131,7 +134,6 @@ export const CalendarPage: React.FC = () => {
                     <div className="space-y-4">
                         <p className="text-secondary-text">{selectedEvent.description}</p>
                         <div className="flex items-center justify-between pt-4 border-t border-border-color mt-4">
-                            {/* Fix: Changed event.source to selectedEvent.source to correctly reference the selected event object. */}
                             <span className={`px-2.5 py-1 text-sm font-semibold rounded-full ${selectedEvent.source === 'Google' ? 'bg-yellow-100 text-yellow-800' : 'bg-blue-100 text-blue-800'}`}>
                                {selectedEvent.source === 'Google' ? 'Google Agenda' : 'Hope OS'}
                             </span>

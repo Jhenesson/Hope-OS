@@ -1,7 +1,7 @@
-import React from 'react';
-import { HomeIcon, ProductsIcon, ClientsIcon, LeadsIcon, ProjectsIcon, CampaignsIcon, CopyIcon, FinanceIcon, CalendarIcon, SettingsIcon } from './icons/Icons';
 
-type Page = 'Início' | 'Produtos' | 'Clientes' | 'Leads' | 'Projetos' | 'Campanhas' | 'Textos & Copys' | 'Financeiro' | 'Tarefas & Calendário' | 'Configurações';
+import React from 'react';
+import { HomeIcon, ClientsIcon, RecordingsIcon, ProjectsIcon, FinanceIcon, CalendarIcon, SettingsIcon, EventsIcon, MegaphoneIcon } from './icons/Icons';
+import { Page } from '../types';
 
 interface SidebarProps {
   activePage: Page;
@@ -10,12 +10,11 @@ interface SidebarProps {
 
 const navItems = [
   { name: 'Início', icon: HomeIcon },
-  { name: 'Produtos', icon: ProductsIcon },
   { name: 'Clientes', icon: ClientsIcon },
-  { name: 'Leads', icon: LeadsIcon },
+  { name: 'Marketing', icon: MegaphoneIcon },
+  { name: 'Gravações', icon: RecordingsIcon },
   { name: 'Projetos', icon: ProjectsIcon },
-  { name: 'Campanhas', icon: CampaignsIcon },
-  { name: 'Textos & Copys', icon: CopyIcon },
+  { name: 'Eventos', icon: EventsIcon },
   { name: 'Financeiro', icon: FinanceIcon },
   { name: 'Tarefas & Calendário', icon: CalendarIcon },
   { name: 'Configurações', icon: SettingsIcon },

@@ -1,4 +1,6 @@
 
+export type Page = 'Início' | 'Produtos' | 'Clientes' | 'Marketing' | 'Gravações' | 'Projetos' | 'Eventos' | 'Financeiro' | 'Tarefas & Calendário' | 'Configurações';
+
 export enum LeadStatus {
   Novo = 'Novo',
   EmConversa = 'Em Conversa',
@@ -14,13 +16,17 @@ export interface Lead {
   gender: 'male' | 'female';
   status: LeadStatus;
   lastContact: string;
+  email?: string;
+  whatsapp?: string;
+  notes?: string; // Quick notes
+  nextFollowUp?: string; // YYYY-MM-DD schedule
 }
 
 export interface Client {
   id: string;
   name: string;
-  email: string;
-  company: string;
+  email?: string;
+  whatsapp: string;
   gender: 'male' | 'female';
   status: 'Active' | 'Inactive' | 'Lead';
   lastProjectDate: string;
@@ -36,10 +42,14 @@ export interface FinancialTransaction {
 }
 
 export enum ProductCategory {
-    Vídeo = 'Vídeo',
-    ProduçãoMusical = 'Produção Musical',
-    GravaçãoDeÁudio = 'Gravação de Áudio',
-    PósProduçãoDeÁudio = 'Pós-produção de Áudio',
+    VideoAcustico = 'Vídeo Acústico',
+    VideoBanda = 'Vídeo com Banda',
+    HopeSession = 'Hope Session Colaborativa',
+    PocketShow = 'Pocket Show',
+    DrumDay = 'DrumDay',
+    ProducaoMusical = 'Produção Musical (Single)',
+    Gravacao = 'Gravação',
+    PosProducaoAudio = 'Pós-produção de Áudio',
 }
 
 export interface Product {
@@ -48,6 +58,9 @@ export interface Product {
     price: string;
     description: string;
     category: ProductCategory;
+    horasEstimadas: number;
+    createdAt?: string;
+    updatedAt?: string;
 }
 
 export interface CalendarEvent {
@@ -73,4 +86,162 @@ export interface Copywriting {
     content: string;
     category: CopyCategory;
     createdAt: string;
+    updatedAt: string;
+}
+
+export interface Event {
+  id: string;
+  name: string;
+  description: string;
+  date: string; // YYYY-MM-DD
+}
+
+export enum EventInterestStatus {
+  Interessado = 'Interessado',
+  Confirmado = 'Confirmado',
+  Compareceu = 'Compareceu',
+}
+
+export interface EventInterest {
+  id: string;
+  clientId: string;
+  eventId: string;
+  status: EventInterestStatus;
+  notes?: string;
+}
+
+export enum RecordingStatus {
+    Agendada = 'Agendada',
+    Concluída = 'Concluída',
+    Cancelada = 'Cancelada',
+}
+
+export enum PaymentStatus {
+    Pendente = 'Pendente',
+    Entrada25 = 'Entrada 25%',
+    Entrada50 = 'Entrada 50%',
+    Entrada75 = 'Entrada 75%',
+    PagoIntegral = 'Pagamento Integral (100%)',
+}
+
+export interface Recording {
+    id: string;
+    clientId: string;
+    productId: string;
+    data: string; // YYYY-MM-DD
+    horaInicio: string; // HH:mm
+    horaFim: string; // HH:mm
+    horasEstimadas: number;
+    valorUnitario: number;
+    quantidade: number;
+    valorTotal: number;
+    statusPagamentoInicial: PaymentStatus;
+    notes: string;
+    status: RecordingStatus;
+    createdAt: string;
+    updatedAt: string;
+}
+
+// --- FINANCIAL MODULE TYPES ---
+
+export enum StatusPagamento {
+    AReceber = 'A Receber',
+    Pago = 'Pago',
+    Parcial = 'Parcial',
+    Cancelado = 'Cancelado',
+}
+
+export interface LancamentoFinanceiro {
+    id: string;
+    gravacaoId: string; // Link to the original recording
+    eventId?: string; // Link to an event (Optional)
+    produtoId: string;
+    clienteId: string;
+    valorPrevisto: number;
+    valorRecebido: number;
+    statusPagamento: StatusPagamento;
+    dataPrevista: string; // Copied from recording
+    datasPagamentos?: { id: string; data: string; valor: number; tipo: string }[];
+    formaPagamento?: string;
+    observacoes?: string;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface SaidaFinanceira {
+    id: string;
+    descricao: string;
+    valor: number;
+    data: string; // YYYY-MM-DD
+    categoria: string;
+    observacoes?: string;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface ExpensePreset {
+    id: string;
+    name: string; // Display name for button (e.g. "Bruno")
+    description: string; // Default description field value
+    category: string;
+    amount: number;
+}
+
+// --- CAMPAIGNS MODULE TYPES ---
+
+export enum CampaignStatus {
+    Ativa = 'Ativa',
+    Concluida = 'Concluída',
+    Rascunho = 'Rascunho',
+    Arquivada = 'Arquivada'
+}
+
+export enum CampaignObjective {
+    Leads = 'Leads',
+    Vendas = 'Vendas',
+    Engajamento = 'Engajamento',
+    Lancamento = 'Lançamento',
+    Branding = 'Branding'
+}
+
+export interface CampaignChecklistItem {
+    id: string;
+    text: string;
+    completed: boolean;
+}
+
+export interface Campaign {
+    id: string;
+    name: string;
+    objective: CampaignObjective;
+    status: CampaignStatus;
+    startDate: string;
+    endDate?: string;
+    productId?: string; // Related product (optional)
+    budget?: number;
+    spent?: number;
+    results?: {
+        leads?: number;
+        sales?: number;
+        clicks?: number;
+        reach?: number;
+    };
+    copy?: {
+        main: string;
+        secondary?: string;
+        hashtags?: string;
+    };
+    visuals?: {
+        imageUrl?: string; // URL or Placeholder
+        description?: string;
+    };
+    audience?: {
+        primary?: string;
+        interests?: string;
+    };
+    rating?: number; // 1 to 5 stars
+    notes?: string; // HTML/Rich Text content
+    checklist?: CampaignChecklistItem[];
+    createdAt: string;
+    updatedAt: string;
 }

@@ -1,8 +1,9 @@
+
 import React, { useState, useMemo, useEffect } from 'react';
-import { MOCK_COPYWRITING } from '../constants';
 import { Copywriting, CopyCategory } from '../types';
-import { ClipboardCopyIcon, CheckIcon } from '../components/icons/Icons';
+import { ClipboardCopyIcon, CheckIcon, TrashIcon } from '../components/icons/Icons';
 import { Modal } from '../components/Modal';
+import { useAppContext } from '../context/AppContext';
 
 const categoryColors: { [key in CopyCategory]: string } = {
     [CopyCategory.Instagram]: 'bg-gradient-to-r from-pink-100 to-purple-100 text-purple-800',
@@ -14,9 +15,20 @@ const categoryColors: { [key in CopyCategory]: string } = {
 
 // --- TextosCopysPage Component ---
 export const TextosCopysPage: React.FC = () => {
-    const [copywriting, setCopywriting] = useState<Copywriting[]>(MOCK_COPYWRITING);
+    const { appState, setAppState } = useAppContext();
+    const { copywriting } = appState;
+
+    const setCopywriting = (value: React.SetStateAction<Copywriting[]>) => {
+        setAppState(prev => ({
+            ...prev,
+            copywriting: typeof value === 'function' ? value(prev.copywriting) : value
+        }));
+    };
+
     const [activeFilter, setActiveFilter] = useState<CopyCategory | 'All'>('All');
     const [copiedId, setCopiedId] = useState<string | null>(null);
+    const [copyToDelete, setCopyToDelete] = useState<Copywriting | null>(null);
+
 
     // Modal States
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -49,6 +61,12 @@ export const TextosCopysPage: React.FC = () => {
         }).catch(err => {
             console.error('Failed to copy text: ', err);
         });
+    };
+
+    const handleDeleteCopy = () => {
+        if (!copyToDelete) return;
+        setCopywriting(prev => prev.filter(c => c.id !== copyToDelete.id));
+        setCopyToDelete(null);
     };
 
     const handleCloseModal = () => {
@@ -146,20 +164,32 @@ export const TextosCopysPage: React.FC = () => {
                             <span className="text-xs text-secondary-text">
                                 Criado em: {new Date(item.createdAt + 'T12:00:00').toLocaleDateString('pt-BR')}
                             </span>
-                            <button
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleCopy(item.id, item.content);
-                                }}
-                                className={`rounded-full px-4 py-2 text-sm font-medium transition-all duration-200 flex items-center gap-2 ${
-                                    copiedId === item.id
-                                        ? 'bg-apple-green text-white'
-                                        : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-100 hover:border-gray-300'
-                                }`}
-                            >
-                                {copiedId === item.id ? <CheckIcon className="w-4 h-4" /> : <ClipboardCopyIcon className="w-4 h-4" />}
-                                {copiedId === item.id ? 'Copiado!' : 'Copiar'}
-                            </button>
+                            <div className="flex items-center gap-1">
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleCopy(item.id, item.content);
+                                    }}
+                                    className={`rounded-full px-4 py-2 text-sm font-medium transition-all duration-200 flex items-center gap-2 ${
+                                        copiedId === item.id
+                                            ? 'bg-apple-green text-white'
+                                            : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-100 hover:border-gray-300'
+                                    }`}
+                                >
+                                    {copiedId === item.id ? <CheckIcon className="w-4 h-4" /> : <ClipboardCopyIcon className="w-4 h-4" />}
+                                    {copiedId === item.id ? 'Copiado!' : 'Copiar'}
+                                </button>
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setCopyToDelete(item);
+                                    }}
+                                    className="p-2 text-gray-400 hover:text-apple-red hover:bg-red-50 rounded-full transition-colors"
+                                    aria-label="Deletar texto"
+                                >
+                                    <TrashIcon className="w-5 h-5" />
+                                </button>
+                            </div>
                         </div>
                     </div>
                 ))}
@@ -226,6 +256,36 @@ export const TextosCopysPage: React.FC = () => {
                              </div>
                         </div>
                     )}
+                </Modal>
+            )}
+
+            {/* Delete Confirmation Modal */}
+            {copyToDelete && (
+                <Modal
+                    isOpen={!!copyToDelete}
+                    onClose={() => setCopyToDelete(null)}
+                    title="Confirmar Exclusão"
+                >
+                    <div className="text-center">
+                        <p className="text-secondary-text">
+                            Tem certeza que deseja excluir o texto <strong className="text-primary-text">"{copyToDelete.title}"</strong>?
+                        </p>
+                        <p className="text-secondary-text mt-2">Esta ação não pode ser desfeita.</p>
+                        <div className="mt-6 flex justify-center gap-4">
+                            <button
+                                onClick={() => setCopyToDelete(null)}
+                                className="rounded-full px-6 py-2 bg-white border border-gray-200 text-gray-700 font-medium hover:bg-gray-100 transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={handleDeleteCopy}
+                                className="rounded-full px-6 py-2 bg-apple-red text-white font-medium hover:bg-red-700 transition-colors"
+                            >
+                                Confirmar Exclusão
+                            </button>
+                        </div>
+                    </div>
                 </Modal>
             )}
         </div>

@@ -1,3 +1,4 @@
+
 import React, { useEffect } from 'react';
 
 interface ModalProps {
@@ -5,9 +6,11 @@ interface ModalProps {
   onClose: () => void;
   children: React.ReactNode;
   title: string;
+  headerClassName?: string;
+  className?: string;
 }
 
-export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, title }) => {
+export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, title, headerClassName, className }) => {
   useEffect(() => {
     const handleEsc = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
@@ -22,6 +25,10 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, title }
 
   if (!isOpen) return null;
 
+  const containerClasses = className 
+    ? `bg-white rounded-2xl border border-border-color shadow-xl w-full m-4 transform transition-all duration-300 ease-in-out animate-scaleIn overflow-hidden flex flex-col ${className}`
+    : `bg-white rounded-2xl border border-border-color shadow-xl w-full max-w-lg m-4 transform transition-all duration-300 ease-in-out animate-scaleIn overflow-hidden flex flex-col`;
+
   return (
     <div
       className="fixed inset-0 bg-black/30 backdrop-blur-sm flex justify-center items-center z-50 transition-opacity duration-300 ease-in-out animate-fadeIn"
@@ -30,10 +37,10 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, title }
       role="dialog"
     >
       <div
-        className="bg-white rounded-2xl border border-border-color shadow-xl w-full max-w-lg m-4 p-6 transform transition-all duration-300 ease-in-out animate-scaleIn"
+        className={containerClasses}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex justify-between items-center border-b border-border-color pb-4 mb-4">
+        <div className={`flex justify-between items-center border-b border-border-color p-6 flex-shrink-0 ${headerClassName || ''}`}>
           <h3 className="text-xl font-semibold text-primary-text">{title}</h3>
           <button
             onClick={onClose}
@@ -45,7 +52,7 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, title }
             </svg>
           </button>
         </div>
-        <div>{children}</div>
+        <div className="p-6 flex-1 overflow-hidden flex flex-col">{children}</div>
       </div>
        <style>{`
         @keyframes fadeIn {

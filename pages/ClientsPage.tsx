@@ -1,8 +1,9 @@
+
 import React, { useState, useMemo } from 'react';
 import { Client } from '../types';
-import { MOCK_CLIENTS } from '../constants';
 import { Modal } from '../components/Modal';
 import { AbstractAvatar } from '../components/AbstractAvatar';
+import { useAppContext } from '../context/AppContext';
 
 const statusStyles: { [key: string]: string } = {
   Active: 'bg-green-100 text-green-800',
@@ -19,7 +20,16 @@ const SearchIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
 
 
 export const ClientsPage: React.FC = () => {
-  const [clients, setClients] = useState<Client[]>(MOCK_CLIENTS);
+  const { appState, setAppState } = useAppContext();
+  const { clients } = appState;
+
+  const setClients = (value: React.SetStateAction<Client[]>) => {
+    setAppState(prev => ({
+        ...prev,
+        clients: typeof value === 'function' ? value(prev.clients) : value
+    }));
+  };
+  
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
@@ -27,7 +37,7 @@ export const ClientsPage: React.FC = () => {
   const [newClient, setNewClient] = useState<Omit<Client, 'id' | 'lastProjectDate'>>({
     name: '',
     email: '',
-    company: '',
+    whatsapp: '',
     gender: 'female',
     status: 'Lead',
   });
@@ -45,8 +55,8 @@ export const ClientsPage: React.FC = () => {
       })
       .filter(client => 
         client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        client.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        client.company.toLowerCase().includes(searchTerm.toLowerCase())
+        (client.email && client.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        client.whatsapp.toLowerCase().includes(searchTerm.toLowerCase())
       );
   }, [clients, searchTerm, statusFilter]);
 
@@ -69,7 +79,7 @@ export const ClientsPage: React.FC = () => {
 
   const handleAddNewClient = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newClient.name || !newClient.email || !newClient.company) {
+    if (!newClient.name || !newClient.whatsapp) {
       return;
     }
     const clientToAdd: Client = {
@@ -79,7 +89,7 @@ export const ClientsPage: React.FC = () => {
     };
     setClients(prevClients => [clientToAdd, ...prevClients]);
     setIsAddModalOpen(false);
-    setNewClient({ name: '', email: '', company: '', gender: 'female', status: 'Lead' });
+    setNewClient({ name: '', email: '', whatsapp: '', gender: 'female', status: 'Lead' });
   };
 
   const handleEditChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -136,13 +146,13 @@ export const ClientsPage: React.FC = () => {
         ))}
       </div>
 
-      <div className="flex-1 bg-white rounded-2xl border border-border-color shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
+      <div className="flex-1 bg-white rounded-2xl border border-border-color shadow-sm flex flex-col overflow-hidden">
+        <div className="flex-1 overflow-auto custom-scrollbar">
           <table className="w-full text-left">
-            <thead className="border-b border-border-color bg-gray-50/50">
+            <thead className="border-b border-border-color bg-gray-50/50 sticky top-0 z-10">
               <tr>
                 <th className="p-4 font-semibold text-sm text-secondary-text">Nome</th>
-                <th className="p-4 font-semibold text-sm text-secondary-text">Empresa</th>
+                <th className="p-4 font-semibold text-sm text-secondary-text">WhatsApp</th>
                 <th className="p-4 font-semibold text-sm text-secondary-text">Status</th>
                 <th className="p-4 font-semibold text-sm text-secondary-text">Último Projeto</th>
               </tr>
@@ -163,7 +173,7 @@ export const ClientsPage: React.FC = () => {
                       </div>
                     </div>
                   </td>
-                  <td className="p-4 text-sm text-secondary-text">{client.company}</td>
+                  <td className="p-4 text-sm text-secondary-text">{client.whatsapp}</td>
                   <td className="p-4">
                     <span className={`px-2 py-1 text-xs font-semibold rounded-full ${statusStyles[client.status]}`}>
                       {client.status}
@@ -184,15 +194,15 @@ export const ClientsPage: React.FC = () => {
             <form onSubmit={handleSaveChanges} className="space-y-4">
               <div>
                 <label htmlFor="name" className="block text-sm font-medium text-secondary-text mb-1 text-left">Nome</label>
-                <input type="text" name="name" id="name" value={editedClient.name} onChange={handleEditChange} className="w-full px-3 py-2 border border-border-color rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-apple-blue transition-shadow" />
+                <input type="text" name="name" id="name" value={editedClient.name} onChange={handleEditChange} className="w-full px-3 py-2 border border-border-color rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-apple-blue transition-shadow" required/>
               </div>
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-secondary-text mb-1 text-left">Email</label>
-                <input type="email" name="email" id="email" value={editedClient.email} onChange={handleEditChange} className="w-full px-3 py-2 border border-border-color rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-apple-blue transition-shadow" />
+                <label htmlFor="email" className="block text-sm font-medium text-secondary-text mb-1 text-left">Email (Opcional)</label>
+                <input type="email" name="email" id="email" value={editedClient.email || ''} onChange={handleEditChange} className="w-full px-3 py-2 border border-border-color rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-apple-blue transition-shadow" />
               </div>
               <div>
-                <label htmlFor="company" className="block text-sm font-medium text-secondary-text mb-1 text-left">Empresa</label>
-                <input type="text" name="company" id="company" value={editedClient.company} onChange={handleEditChange} className="w-full px-3 py-2 border border-border-color rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-apple-blue transition-shadow" />
+                <label htmlFor="whatsapp" className="block text-sm font-medium text-secondary-text mb-1 text-left">WhatsApp</label>
+                <input type="text" name="whatsapp" id="whatsapp" value={editedClient.whatsapp} onChange={handleEditChange} className="w-full px-3 py-2 border border-border-color rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-apple-blue transition-shadow" required/>
               </div>
               <div>
                   <label className="block text-sm font-medium text-secondary-text mb-1 text-left">Gênero</label>
@@ -228,7 +238,7 @@ export const ClientsPage: React.FC = () => {
                   <AbstractAvatar name={selectedClient.name} gender={selectedClient.gender} size={96} />
                 </div>
                 <p className="text-lg font-medium text-secondary-text">{selectedClient.email}</p>
-                <p className="text-md text-secondary-text">{selectedClient.company}</p>
+                <p className="text-md text-secondary-text">{selectedClient.whatsapp}</p>
                 <div className="mt-4">
                   <span className={`px-3 py-1 text-sm font-semibold rounded-full ${statusStyles[selectedClient.status]}`}>
                     {selectedClient.status}
@@ -262,24 +272,23 @@ export const ClientsPage: React.FC = () => {
               />
             </div>
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-secondary-text mb-1">E-mail</label>
+              <label htmlFor="email" className="block text-sm font-medium text-secondary-text mb-1">E-mail (Opcional)</label>
               <input
                 type="email"
                 name="email"
                 id="email"
-                value={newClient.email}
+                value={newClient.email || ''}
                 onChange={handleAddInputChange}
                 className="w-full px-3 py-2 border border-border-color rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-apple-blue transition-shadow"
-                required
               />
             </div>
             <div>
-              <label htmlFor="company" className="block text-sm font-medium text-secondary-text mb-1">Empresa</label>
+              <label htmlFor="whatsapp" className="block text-sm font-medium text-secondary-text mb-1">WhatsApp</label>
               <input
                 type="text"
-                name="company"
-                id="company"
-                value={newClient.company}
+                name="whatsapp"
+                id="whatsapp"
+                value={newClient.whatsapp}
                 onChange={handleAddInputChange}
                 className="w-full px-3 py-2 border border-border-color rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-apple-blue transition-shadow"
                 required

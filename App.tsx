@@ -1,15 +1,17 @@
+
 import React, { useState } from 'react';
 import { Sidebar } from './components/Sidebar';
-import { LeadsPage } from './pages/LeadsPage';
 import { ClientsPage } from './pages/ClientsPage';
 import { FinancialPage } from './pages/FinancialPage';
 import { PlaceholderPage } from './pages/PlaceholderPage';
-import { ProductsPage } from './pages/ProductsPage';
 import { CalendarPage } from './pages/CalendarPage';
 import { DashboardPage } from './pages/DashboardPage';
-import { TextosCopysPage } from './pages/TextosCopysPage';
-
-type Page = 'Início' | 'Produtos' | 'Clientes' | 'Leads' | 'Projetos' | 'Campanhas' | 'Textos & Copys' | 'Financeiro' | 'Tarefas & Calendário' | 'Configurações';
+import { EventsPage } from './pages/EventsPage';
+import { SettingsPage } from './pages/SettingsPage';
+import { RecordingsPage } from './pages/RecordingsPage';
+import { MarketingPage } from './pages/MarketingPage';
+import { Page } from './types';
+import { AppProvider } from './context/AppContext';
 
 const App: React.FC = () => {
   const [activePage, setActivePage] = useState<Page>('Início');
@@ -17,35 +19,37 @@ const App: React.FC = () => {
   const renderPage = () => {
     switch (activePage) {
       case 'Início':
-        return <DashboardPage />;
-      case 'Produtos':
-        return <ProductsPage />;
-      case 'Leads':
-        return <LeadsPage />;
+        return <DashboardPage setActivePage={setActivePage} />;
+      case 'Marketing':
+        return <MarketingPage />;
+      case 'Gravações':
+        return <RecordingsPage />;
       case 'Clientes':
         return <ClientsPage />;
       case 'Financeiro':
         return <FinancialPage />;
       case 'Tarefas & Calendário':
         return <CalendarPage />;
-      case 'Textos & Copys':
-        return <TextosCopysPage />;
+      case 'Eventos':
+        return <EventsPage />;
       case 'Projetos':
-      case 'Campanhas':
-      case 'Configurações':
         return <PlaceholderPage title={activePage} />;
+      case 'Configurações':
+        return <SettingsPage />;
       default:
-        return <DashboardPage />;
+        return <DashboardPage setActivePage={setActivePage} />;
     }
   };
 
   return (
-    <div className="bg-app-bg text-primary-text min-h-screen">
-      <main className="p-4 sm:p-6 md:p-8 pb-28">
-        {renderPage()}
-      </main>
-      <Sidebar activePage={activePage} setActivePage={setActivePage} />
-    </div>
+    <AppProvider>
+      <div className="bg-app-bg text-primary-text min-h-screen">
+        <main className="p-4 sm:p-6 md:p-8 pb-28">
+          {renderPage()}
+        </main>
+        <Sidebar activePage={activePage} setActivePage={setActivePage} />
+      </div>
+    </AppProvider>
   );
 };
 

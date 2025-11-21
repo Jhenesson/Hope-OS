@@ -1,8 +1,10 @@
+
 import React, { useState } from 'react';
-import { Lead, LeadStatus } from '../types';
-import { MOCK_LEADS } from '../constants';
+import { Lead, LeadStatus, Client } from '../types';
 import { Modal } from '../components/Modal';
 import { AbstractAvatar } from '../components/AbstractAvatar';
+import { useAppContext } from '../context/AppContext';
+import { TrashIcon, UserPlusIcon, CalendarIcon } from '../components/icons/Icons';
 
 const statusColors: { [key in LeadStatus]: string } = {
   [LeadStatus.Novo]: 'bg-blue-100 text-blue-800',
@@ -39,6 +41,14 @@ const KanbanCard: React.FC<KanbanCardProps> = ({ lead, onClick }) => {
       <div className="mt-4 text-xs text-secondary-text">
         Último contato: {lead.lastContact}
       </div>
+      {lead.nextFollowUp && (
+          <div className="mt-2 flex items-center gap-1 text-xs text-apple-blue font-medium">
+              <CalendarIcon className="w-3 h-3" />
+              <span>
+                  {new Date(lead.nextFollowUp + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
+              </span>
+          </div>
+      )}
     </div>
   );
 };
@@ -85,7 +95,16 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({ status, leads, onDrop, onCa
 
 // --- LeadsPage Component ---
 export const LeadsPage: React.FC = () => {
-  const [leads, setLeads] = useState<Lead[]>(MOCK_LEADS);
+  const { appState, setAppState } = useAppContext();
+  const { leads } = appState;
+
+  const setLeads = (value: React.SetStateAction<Lead[]>) => {
+    setAppState(prev => ({
+        ...prev,
+        leads: typeof value === 'function' ? value(prev.leads) : value
+    }));
+  };
+
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [newLead, setNewLead] = useState<Omit<Lead, 'id' | 'lastContact'>>({
@@ -96,6 +115,7 @@ export const LeadsPage: React.FC = () => {
   });
 
   const [isEditing, setIsEditing] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [editedLead, setEditedLead] = useState<Lead | null>(null);
 
   const handleDrop = (newStatus: LeadStatus, e: React.DragEvent<HTMLDivElement>) => {
@@ -111,12 +131,14 @@ export const LeadsPage: React.FC = () => {
     setSelectedLead(lead);
     setEditedLead(lead);
     setIsEditing(false);
+    setIsDeleting(false);
   };
 
   const handleCloseModal = () => {
     setSelectedLead(null);
     setEditedLead(null);
     setIsEditing(false);
+    setIsDeleting(false);
   };
   
   const handleAddInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -138,7 +160,7 @@ export const LeadsPage: React.FC = () => {
     setNewLead({ name: '', company: '', gender: 'female', status: LeadStatus.Novo });
   };
   
-  const handleEditChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleEditChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     if (!editedLead) return;
     const { name, value } = e.target;
     setEditedLead({ ...editedLead, [name]: value as any });
@@ -150,6 +172,36 @@ export const LeadsPage: React.FC = () => {
     setLeads(leads.map(l => l.id === editedLead.id ? editedLead : l));
     setSelectedLead(editedLead);
     setIsEditing(false);
+  };
+  
+  const handleConfirmDelete = () => {
+      if (selectedLead) {
+          setLeads(prev => prev.filter(l => l.id !== selectedLead.id));
+          handleCloseModal();
+      }
+  };
+
+  const handleConvertToClient = () => {
+      if (!selectedLead) return;
+
+      const newClient: Client = {
+          id: `client-${Date.now()}`,
+          name: selectedLead.name,
+          email: selectedLead.email || '',
+          whatsapp: selectedLead.whatsapp || '',
+          gender: selectedLead.gender,
+          status: 'Active',
+          lastProjectDate: 'N/A'
+      };
+
+      setAppState(prev => ({
+          ...prev,
+          clients: [newClient, ...prev.clients],
+          leads: prev.leads.map(l => l.id === selectedLead.id ? { ...l, status: LeadStatus.Convertido } : l)
+      }));
+      
+      handleCloseModal();
+      alert(`Lead ${selectedLead.name} convertido em cliente com sucesso!`);
   };
 
 
@@ -176,8 +228,29 @@ export const LeadsPage: React.FC = () => {
       </div>
 
        {selectedLead && editedLead && (
-        <Modal isOpen={!!selectedLead} onClose={handleCloseModal} title={isEditing ? `Editando ${selectedLead.name}` : selectedLead.name}>
-          {isEditing ? (
+        <Modal isOpen={!!selectedLead} onClose={handleCloseModal} title={isDeleting ? 'Confirmar Exclusão' : (isEditing ? `Editando ${selectedLead.name}` : selectedLead.name)}>
+          {isDeleting ? (
+               <div className="text-center space-y-6">
+                    <p className="text-secondary-text">
+                        Tem certeza que deseja excluir o lead <strong className="text-primary-text">{selectedLead.name}</strong>?
+                    </p>
+                    <p className="text-sm text-secondary-text mt-2">Esta ação não pode ser desfeita.</p>
+                    <div className="flex justify-center gap-4">
+                        <button
+                            onClick={() => setIsDeleting(false)}
+                            className="rounded-full px-6 py-2 bg-white border border-gray-200 text-gray-700 font-medium hover:bg-gray-100 transition-colors"
+                        >
+                            Cancelar
+                        </button>
+                        <button
+                            onClick={handleConfirmDelete}
+                            className="rounded-full px-6 py-2 bg-apple-red text-white font-medium hover:bg-red-700 transition-colors"
+                        >
+                            Confirmar Exclusão
+                        </button>
+                    </div>
+                </div>
+          ) : isEditing ? (
             <form onSubmit={handleSaveChanges} className="space-y-4">
                <div>
                 <label htmlFor="name" className="block text-sm font-medium text-secondary-text mb-1 text-left">Nome</label>
@@ -186,6 +259,10 @@ export const LeadsPage: React.FC = () => {
               <div>
                 <label htmlFor="company" className="block text-sm font-medium text-secondary-text mb-1 text-left">Empresa</label>
                 <input type="text" name="company" id="company" value={editedLead.company} onChange={handleEditChange} className="w-full px-3 py-2 border border-border-color rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-apple-blue transition-shadow" />
+              </div>
+              <div>
+                <label htmlFor="whatsapp" className="block text-sm font-medium text-secondary-text mb-1 text-left">WhatsApp</label>
+                <input type="text" name="whatsapp" id="whatsapp" value={editedLead.whatsapp || ''} onChange={handleEditChange} className="w-full px-3 py-2 border border-border-color rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-apple-blue transition-shadow" />
               </div>
               <div>
                   <label className="block text-sm font-medium text-secondary-text mb-1 text-left">Gênero</label>
@@ -206,6 +283,23 @@ export const LeadsPage: React.FC = () => {
                       {statuses.map(s => <option key={s} value={s}>{s}</option>)}
                   </select>
               </div>
+              
+              {/* New Internal Planning Section */}
+              <div className="pt-4 border-t border-border-color mt-4">
+                  <h4 className="text-xs font-bold text-secondary-text uppercase tracking-wide mb-3">Planejamento & Interno</h4>
+                  <div className="grid grid-cols-1 gap-4">
+                      <div>
+                          <label htmlFor="nextFollowUp" className="block text-sm font-medium text-secondary-text mb-1 text-left">Agendar Contato</label>
+                          <input type="date" name="nextFollowUp" id="nextFollowUp" value={editedLead.nextFollowUp || ''} onChange={handleEditChange} className="w-full px-3 py-2 border border-border-color rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-apple-blue transition-shadow" />
+                      </div>
+                      <div>
+                          <label htmlFor="notes" className="block text-sm font-medium text-secondary-text mb-1 text-left">Notas Rápidas</label>
+                          <textarea name="notes" id="notes" rows={3} value={editedLead.notes || ''} onChange={handleEditChange} className="w-full px-3 py-2 border border-border-color rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-apple-blue transition-shadow" placeholder="Anotações internas..." />
+                      </div>
+                  </div>
+              </div>
+
+
               <div className="pt-4 flex justify-end gap-3">
                   <button type="button" onClick={() => { setIsEditing(false); setEditedLead(selectedLead); }} className="rounded-full px-4 py-2 bg-white border border-gray-200 text-gray-700 font-medium hover:bg-gray-100 transition-colors">Cancelar</button>
                   <button type="submit" className="rounded-full px-5 py-2 bg-apple-blue text-white font-medium hover:bg-apple-blue-hover transition-colors">Salvar Alterações</button>
@@ -225,10 +319,50 @@ export const LeadsPage: React.FC = () => {
                 </div>
                 <p className="mt-4 text-sm text-secondary-text">Último contato: {selectedLead.lastContact}</p>
               </div>
-               <div className="pt-6 mt-4 border-t border-border-color flex justify-end">
-                <button onClick={() => setIsEditing(true)} className="rounded-full px-5 py-2 bg-apple-blue text-white font-medium hover:bg-apple-blue-hover transition-colors">
-                  Editar
+              
+               {/* Display Notes and Schedule if available */}
+               {(selectedLead.notes || selectedLead.nextFollowUp) && (
+                  <div className="mt-6 bg-gray-50 rounded-xl p-4 text-left border border-border-color/60">
+                      {selectedLead.nextFollowUp && (
+                          <div className="flex items-center gap-2 mb-3 text-apple-blue font-medium text-sm">
+                              <CalendarIcon className="w-4 h-4" />
+                              <span>Agendado para: {new Date(selectedLead.nextFollowUp + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
+                          </div>
+                      )}
+                      {selectedLead.notes && (
+                          <div>
+                              <p className="text-xs font-bold text-secondary-text uppercase mb-1">Notas</p>
+                              <p className="text-sm text-primary-text whitespace-pre-wrap">{selectedLead.notes}</p>
+                          </div>
+                      )}
+                  </div>
+               )}
+
+               <div className="pt-6 mt-4 border-t border-border-color flex justify-between items-center">
+                <button 
+                    onClick={() => setIsDeleting(true)} 
+                    className="p-2 text-gray-400 hover:text-apple-red hover:bg-red-50 rounded-full transition-colors"
+                    title="Excluir Lead"
+                >
+                    <TrashIcon className="w-5 h-5" />
                 </button>
+                <div className="flex gap-3">
+                    {selectedLead.status !== LeadStatus.Convertido && (
+                         <button 
+                            onClick={handleConvertToClient} 
+                            className="flex items-center gap-2 rounded-full px-4 py-2 bg-white border border-gray-200 text-gray-700 font-medium hover:bg-green-50 hover:text-green-700 hover:border-green-200 transition-colors"
+                        >
+                            <UserPlusIcon className="w-4 h-4" />
+                            Converter em Cliente
+                        </button>
+                    )}
+                    <button 
+                        onClick={() => setIsEditing(true)} 
+                        className="rounded-full px-5 py-2 bg-apple-blue text-white font-medium hover:bg-apple-blue-hover transition-colors"
+                    >
+                        Editar
+                    </button>
+                </div>
               </div>
             </div>
           )}
