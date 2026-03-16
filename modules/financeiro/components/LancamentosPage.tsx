@@ -60,7 +60,6 @@ export const LancamentosPage: React.FC = () => {
     const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' }>({ key: 'dataPrevista', direction: 'desc' });
 
     // Filter State
-    const currentMonthStr = new Date().toISOString().slice(0, 7); // YYYY-MM
     const [filterMonth, setFilterMonth] = useState<string>('all');
 
 
@@ -80,7 +79,6 @@ export const LancamentosPage: React.FC = () => {
     // --- Helper: Get Available Months ---
     const availableMonths = useMemo(() => {
         const months = new Set<string>();
-        // Add current month to ensure it's always there
         months.add(new Date().toISOString().slice(0, 7)); 
         
         lancamentos.forEach(l => {
@@ -98,17 +96,15 @@ export const LancamentosPage: React.FC = () => {
     };
 
 
-    // --- Effect: Recalculate Total based on Product and Quantity (Add Launch Modal) ---
+    // --- Effect: Recalculate Total based on Product and Quantity ---
     useEffect(() => {
         if (isAddModalOpen && newLancamento.produtoId) {
             const product = products.find(p => p.id === newLancamento.produtoId);
             if (product) {
                 let unitPrice = 0;
-                // Special logic for "Vídeo Acústico"
                 if (product.id === 'prod-1' || product.name.toLowerCase().includes('vídeo acústico')) {
                     unitPrice = quantity >= 2 ? 250 : 350;
                 } else {
-                    // Standard logic: parse price from string
                     const cleaned = product.price.replace('R$', '').replace(/\./g, '').replace(',', '.').split('/')[0].trim();
                     unitPrice = parseFloat(cleaned) || 0;
                 }
@@ -118,7 +114,7 @@ export const LancamentosPage: React.FC = () => {
         }
     }, [newLancamento.produtoId, quantity, isAddModalOpen, products]);
 
-    // --- Effect: Recalculate Valor Recebido based on Payment Condition (Add Launch Modal) ---
+    // --- Effect: Recalculate Valor Recebido based on Payment Condition ---
     useEffect(() => {
         if (isAddModalOpen) {
             const condition = PAYMENT_CONDITIONS.find(c => c.label === paymentCondition);
@@ -133,7 +129,7 @@ export const LancamentosPage: React.FC = () => {
         }
     }, [paymentCondition, newLancamento.valorPrevisto, isAddModalOpen]);
 
-    // --- Effect: Auto-calculate payment value when type changes (Register Payment Modal) ---
+    // --- Effect: Auto-calculate payment value when type changes ---
     useEffect(() => {
         if (selectedLancamento) {
             const total = selectedLancamento.valorPrevisto;
@@ -149,11 +145,9 @@ export const LancamentosPage: React.FC = () => {
             } else if (newPaymentType === 'Restante') {
                 setNewPaymentValue(remaining > 0 ? remaining : 0);
             } 
-            // For 'Parcial', we don't auto-set unless it's 0
         }
     }, [newPaymentType, selectedLancamento]);
 
-    // Filtered Clients for Search
     const filteredClients = useMemo(() => {
         if (!clientSearchTerm) return clients;
         return clients.filter(c => c.name.toLowerCase().includes(clientSearchTerm.toLowerCase()));
@@ -164,12 +158,10 @@ export const LancamentosPage: React.FC = () => {
     const sortedLancamentos = useMemo(() => {
         let filtered = [...lancamentos];
 
-        // Apply Month Filter
         if (filterMonth !== 'all') {
             filtered = filtered.filter(l => l.dataPrevista.startsWith(filterMonth));
         }
 
-        // Apply Sort
         if (sortConfig !== null) {
             filtered.sort((a, b) => {
                 let aValue: any;
@@ -212,12 +204,8 @@ export const LancamentosPage: React.FC = () => {
                         return 0;
                 }
 
-                if (aValue < bValue) {
-                    return sortConfig.direction === 'asc' ? -1 : 1;
-                }
-                if (aValue > bValue) {
-                    return sortConfig.direction === 'asc' ? 1 : -1;
-                }
+                if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+                if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
                 return 0;
             });
         }
@@ -257,16 +245,14 @@ export const LancamentosPage: React.FC = () => {
         setIsClientDropdownOpen(false);
     };
 
-    // --- Add Payment to Existing Launch ---
     const handleAddPayment = (e: React.FormEvent) => {
         e.preventDefault();
         if (!selectedLancamento || newPaymentValue <= 0) return;
 
         const updatedRecebido = selectedLancamento.valorRecebido + newPaymentValue;
         
-        // Determine new status
         let newStatus = selectedLancamento.statusPagamento;
-        if (updatedRecebido >= selectedLancamento.valorPrevisto) {
+        if (updatedRecebido >= selectedLancamento.valorPrevisto - 0.01) {
             newStatus = StatusPagamento.Pago;
         } else if (updatedRecebido > 0) {
             newStatus = StatusPagamento.Parcial;
@@ -289,17 +275,15 @@ export const LancamentosPage: React.FC = () => {
         };
 
         updateLancamento(updatedLancamento);
-        setSelectedLancamento(updatedLancamento); // Update local state to reflect changes immediately in modal
-        setNewPaymentValue(0); // Reset form
+        setSelectedLancamento(updatedLancamento); 
+        setNewPaymentValue(0); 
     };
 
 
-    // --- Add New Launch (Manual) ---
     const handleAddLancamento = (e: React.FormEvent) => {
         e.preventDefault();
         if (!newLancamento.clienteId || !newLancamento.produtoId) return;
 
-        // If payment is made upfront (not 0), add it to history
         const initialPaymentHistory = newLancamento.valorRecebido > 0 ? [{
             id: `pay-init-${Date.now()}`,
             data: newLancamento.dataPrevista,
@@ -328,7 +312,6 @@ export const LancamentosPage: React.FC = () => {
         }
     };
 
-    // Close dropdown when clicking outside
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -338,6 +321,8 @@ export const LancamentosPage: React.FC = () => {
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
+
+    const todayStr = new Date().toISOString().split('T')[0];
 
     return (
         <div className="p-1">
@@ -369,7 +354,7 @@ export const LancamentosPage: React.FC = () => {
                         <thead className="border-b border-border-color bg-white/50">
                             <tr>
                                 <th className="p-4 font-semibold text-sm text-secondary-text cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => requestSort('dataPrevista')}>
-                                    Data Prevista {getSortIcon('dataPrevista')}
+                                    Vencimento {getSortIcon('dataPrevista')}
                                 </th>
                                 <th className="p-4 font-semibold text-sm text-secondary-text cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => requestSort('createdAt')}>
                                     Data Lançamento {getSortIcon('createdAt')}
@@ -384,10 +369,10 @@ export const LancamentosPage: React.FC = () => {
                                     Valor Total {getSortIcon('valorPrevisto')}
                                 </th>
                                 <th className="p-4 font-semibold text-sm text-secondary-text cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => requestSort('valorRecebido')}>
-                                    Valor Recebido {getSortIcon('valorRecebido')}
+                                    Recebido {getSortIcon('valorRecebido')}
                                 </th>
                                 <th className="p-4 font-semibold text-sm text-secondary-text cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => requestSort('valorRestante')}>
-                                    Valor Restante {getSortIcon('valorRestante')}
+                                    Pendente {getSortIcon('valorRestante')}
                                 </th>
                                 <th className="p-4 font-semibold text-sm text-secondary-text cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => requestSort('status')}>
                                     Status {getSortIcon('status')}
@@ -401,26 +386,61 @@ export const LancamentosPage: React.FC = () => {
                                 const prevMonth = index > 0 ? sortedLancamentos[index - 1].dataPrevista.slice(0, 7) : null;
                                 const showSeparator = filterMonth === 'all' && sortConfig.key === 'dataPrevista' && currentMonth !== prevMonth;
 
+                                const isPaid = valorRestante <= 0.01;
+                                const isRecebidoZero = lanc.valorRecebido <= 0.01;
+                                
+                                // Lógica de atraso coerente com o Dashboard
+                                const isOverdue = !isPaid && lanc.dataPrevista < todayStr;
+                                const isUrgent = !isPaid && (lanc.dataPrevista === todayStr);
+
                                 return (
                                     <React.Fragment key={lanc.id}>
                                         {showSeparator && (
-                                            <tr>
-                                                <td colSpan={8} className="py-2 px-4 bg-gray-100/80 text-xs font-bold text-secondary-text uppercase tracking-wider border-y border-border-color/50 sticky left-0">
-                                                    {formatMonthLabel(currentMonth)}
-                                                </td>
-                                            </tr>
+                                            (() => {
+                                                const monthItems = sortedLancamentos.filter(i => i.dataPrevista.slice(0, 7) === currentMonth);
+                                                const sumPrevisto = monthItems.reduce((acc, curr) => acc + curr.valorPrevisto, 0);
+                                                const sumRecebido = monthItems.reduce((acc, curr) => acc + curr.valorRecebido, 0);
+                                                const sumRestante = sumPrevisto - sumRecebido;
+                                                const isSumPaid = sumRestante <= 0.01;
+
+                                                return (
+                                                    <tr className="bg-gray-100 border-y-2 border-gray-200">
+                                                        <td colSpan={4} className="py-4 px-4 text-base font-bold text-gray-800 uppercase tracking-wider sticky left-0">
+                                                            {formatMonthLabel(currentMonth)}
+                                                        </td>
+                                                        <td className="py-4 px-4 text-base font-bold text-primary-text">
+                                                            {formatCurrency(sumPrevisto)}
+                                                        </td>
+                                                        <td className={`py-4 px-4 text-base font-bold text-apple-green`}>
+                                                            {formatCurrency(sumRecebido)}
+                                                        </td>
+                                                        <td className={`py-4 px-4 text-base font-bold ${isSumPaid ? 'text-gray-400' : 'text-apple-red'}`}>
+                                                            {formatCurrency(sumRestante)}
+                                                        </td>
+                                                        <td className="py-4 px-4"></td>
+                                                    </tr>
+                                                );
+                                            })()
                                         )}
                                         <tr
                                             className="border-b border-border-color/50 last:border-b-0 hover:bg-gray-100/50 transition-colors cursor-pointer"
                                             onClick={() => handleOpenModal(lanc)}
                                         >
-                                            <td className="p-4 text-sm text-primary-text">{new Date(lanc.dataPrevista + 'T12:00:00').toLocaleDateString('pt-BR')}</td>
+                                            <td className="p-4 text-sm">
+                                                <div className="flex items-center gap-2">
+                                                    <span className={`font-medium ${isOverdue ? 'text-apple-red' : isUrgent ? 'text-apple-orange' : 'text-primary-text'}`}>
+                                                        {new Date(lanc.dataPrevista + 'T12:00:00').toLocaleDateString('pt-BR')}
+                                                    </span>
+                                                    {isOverdue && <span className="text-[9px] font-black uppercase text-white bg-apple-red px-1.5 py-0.5 rounded shadow-sm">Vencido</span>}
+                                                    {isUrgent && <span className="text-[9px] font-black uppercase text-white bg-apple-orange px-1.5 py-0.5 rounded shadow-sm">Hoje</span>}
+                                                </div>
+                                            </td>
                                             <td className="p-4 text-sm text-secondary-text">{new Date(lanc.createdAt).toLocaleDateString('pt-BR')}</td>
                                             <td className="p-4 font-medium text-primary-text">{lanc.client?.name || '...'}</td>
                                             <td className="p-4 text-sm text-secondary-text">{lanc.product?.name || '...'}</td>
                                             <td className="p-4 text-sm font-semibold text-primary-text">{formatCurrency(lanc.valorPrevisto)}</td>
-                                            <td className="p-4 text-sm font-semibold text-apple-green">{formatCurrency(lanc.valorRecebido)}</td>
-                                            <td className="p-4 text-sm font-semibold text-apple-red">{formatCurrency(valorRestante)}</td>
+                                            <td className={`p-4 text-sm font-semibold ${isRecebidoZero ? 'text-gray-400' : 'text-apple-green'}`}>{formatCurrency(lanc.valorRecebido)}</td>
+                                            <td className={`p-4 text-sm font-semibold ${isPaid ? 'text-gray-400' : 'text-apple-red'}`}>{formatCurrency(valorRestante)}</td>
                                             <td className="p-4">
                                                 <span className={`px-2 py-1 text-xs font-semibold rounded-full ${statusColors[lanc.statusPagamento]}`}>
                                                     {lanc.statusPagamento}
@@ -433,7 +453,7 @@ export const LancamentosPage: React.FC = () => {
                             {sortedLancamentos.length === 0 && (
                                 <tr>
                                     <td colSpan={8} className="p-8 text-center text-secondary-text">
-                                        Nenhum lançamento encontrado para este período.
+                                        Nenhum lançamento encontrado.
                                     </td>
                                 </tr>
                             )}
@@ -444,315 +464,152 @@ export const LancamentosPage: React.FC = () => {
 
             {/* REGISTER PAYMENT MODAL */}
             {selectedLancamento && (
-                <Modal isOpen={!!selectedLancamento} onClose={handleCloseModal} title={isDeleting ? 'Confirmar Exclusão' : `Registrar Pagamentos: ${selectedLancamento.client?.name}`} headerClassName="bg-gray-50">
+                <Modal isOpen={!!selectedLancamento} onClose={handleCloseModal} title={isDeleting ? 'Confirmar Exclusão' : `Recebimentos: ${selectedLancamento.client?.name}`} headerClassName="bg-gray-50">
                     {isDeleting ? (
                         <div className="text-center space-y-6">
-                            <p className="text-secondary-text">
-                                Tem certeza que deseja excluir o lançamento financeiro de <strong className="text-primary-text">{selectedLancamento.client?.name}</strong>?
-                            </p>
+                            <p className="text-secondary-text">Deseja excluir o lançamento de <strong className="text-primary-text">{selectedLancamento.client?.name}</strong>?</p>
                             <p className="text-sm text-amber-600 bg-amber-50 p-3 rounded-lg border border-amber-100">
-                                ⚠️ Atenção: Se este lançamento estiver vinculado a uma gravação agendada, a gravação será automaticamente marcada como <strong>Cancelada</strong>.
+                                ⚠️ Atenção: Se este lançamento estiver vinculado a uma gravação, ela será marcada como <strong>Cancelada</strong>.
                             </p>
                             <div className="flex justify-center gap-4">
-                                <button
-                                    onClick={() => setIsDeleting(false)}
-                                    className="rounded-full px-6 py-2 bg-white border border-gray-200 text-gray-700 font-medium hover:bg-gray-100 transition-colors"
-                                >
-                                    Cancelar
-                                </button>
-                                <button
-                                    onClick={handleConfirmDelete}
-                                    className="rounded-full px-6 py-2 bg-apple-red text-white font-medium hover:bg-red-700 transition-colors"
-                                >
-                                    Confirmar Exclusão
-                                </button>
+                                <button onClick={() => setIsDeleting(false)} className="rounded-full px-6 py-2 border border-gray-200 text-gray-700 font-bold">Cancelar</button>
+                                <button onClick={handleConfirmDelete} className="rounded-full px-6 py-2 bg-apple-red text-white font-bold">Confirmar Exclusão</button>
                             </div>
                         </div>
                     ) : (
                         <div className="space-y-6">
-                            {/* SUMMARY CARDS */}
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="bg-gray-50 p-4 rounded-xl border border-border-color/60">
-                                    <p className="text-xs text-secondary-text uppercase font-semibold">Valor Total</p>
-                                    <p className="text-xl font-bold text-primary-text">{formatCurrency(selectedLancamento.valorPrevisto)}</p>
+                                    <p className="text-[10px] text-secondary-text uppercase font-bold">Valor Total</p>
+                                    <p className="text-lg font-black text-primary-text">{formatCurrency(selectedLancamento.valorPrevisto)}</p>
                                 </div>
                                 <div className="bg-green-50 p-4 rounded-xl border border-green-100">
-                                    <p className="text-xs text-green-800 uppercase font-semibold">Total Já Pago</p>
-                                    <p className="text-xl font-bold text-green-700">{formatCurrency(selectedLancamento.valorRecebido)}</p>
-                                </div>
-                                <div className="bg-red-50 p-4 rounded-xl border border-red-100">
-                                    <p className="text-xs text-red-800 uppercase font-semibold">Valor Pendente</p>
-                                    <p className="text-xl font-bold text-red-700">{formatCurrency(selectedLancamento.valorPrevisto - selectedLancamento.valorRecebido)}</p>
-                                </div>
-                                <div className="flex flex-col justify-center items-center p-4">
-                                    <p className="text-xs text-secondary-text uppercase font-semibold mb-2">Status Atual</p>
-                                    <span className={`px-3 py-1 text-sm font-semibold rounded-full ${statusColors[selectedLancamento.statusPagamento]}`}>
-                                        {selectedLancamento.statusPagamento}
-                                    </span>
+                                    <p className="text-[10px] text-green-800 uppercase font-bold">Total Pago</p>
+                                    <p className="text-lg font-black text-green-700">{formatCurrency(selectedLancamento.valorRecebido)}</p>
                                 </div>
                             </div>
 
-                            {/* PAYMENT HISTORY */}
                             <div>
-                                <h4 className="text-sm font-bold text-primary-text mb-2">Histórico de Pagamentos</h4>
+                                <h4 className="text-xs font-bold text-secondary-text uppercase mb-2">Histórico de Pagamentos</h4>
                                 {selectedLancamento.datasPagamentos && selectedLancamento.datasPagamentos.length > 0 ? (
-                                    <div className="bg-white border border-border-color rounded-lg overflow-hidden">
-                                        <table className="w-full text-sm text-left">
-                                            <thead className="bg-gray-50">
+                                    <div className="bg-white border border-border-color rounded-xl overflow-hidden">
+                                        <table className="w-full text-xs text-left">
+                                            <thead className="bg-gray-50 border-b">
                                                 <tr>
-                                                    <th className="p-2 text-secondary-text font-medium">Data</th>
-                                                    <th className="p-2 text-secondary-text font-medium">Tipo</th>
-                                                    <th className="p-2 text-secondary-text font-medium text-right">Valor</th>
+                                                    <th className="p-2 text-secondary-text">Data</th>
+                                                    <th className="p-2 text-secondary-text">Tipo</th>
+                                                    <th className="p-2 text-secondary-text text-right">Valor</th>
                                                 </tr>
                                             </thead>
-                                            <tbody>
+                                            <tbody className="divide-y divide-gray-100">
                                                 {selectedLancamento.datasPagamentos.map((pay, idx) => (
-                                                    <tr key={idx} className="border-t border-border-color/50">
+                                                    <tr key={idx} className="hover:bg-gray-50 transition-colors">
                                                         <td className="p-2">{new Date(pay.data + 'T12:00:00').toLocaleDateString('pt-BR')}</td>
-                                                        <td className="p-2 text-gray-600">{pay.tipo || '-'}</td>
-                                                        <td className="p-2 text-right font-medium text-green-700">{formatCurrency(pay.valor)}</td>
+                                                        <td className="p-2 text-gray-600 font-medium">{pay.tipo || '-'}</td>
+                                                        <td className="p-2 text-right font-black text-green-700">{formatCurrency(pay.valor)}</td>
                                                     </tr>
                                                 ))}
                                             </tbody>
                                         </table>
                                     </div>
                                 ) : (
-                                    <p className="text-sm text-gray-400 italic">Nenhum pagamento registrado.</p>
+                                    <p className="text-sm text-gray-400 italic bg-gray-50 p-4 rounded-xl border border-dashed text-center">Nenhum pagamento registrado.</p>
                                 )}
                             </div>
 
-                            {/* ADD PAYMENT FORM */}
-                            <div className="bg-gray-50/80 p-4 rounded-xl border border-border-color/60">
-                                <h4 className="text-sm font-bold text-primary-text mb-3">Adicionar Pagamento</h4>
-                                <form onSubmit={handleAddPayment} className="space-y-3">
+                            <div className="bg-gray-50 p-4 rounded-2xl border border-border-color/60">
+                                <h4 className="text-xs font-bold text-primary-text uppercase mb-3">Adicionar Pagamento</h4>
+                                <form onSubmit={handleAddPayment} className="space-y-4">
                                     <div className="grid grid-cols-2 gap-3">
                                         <div>
-                                            <label className="block text-xs font-medium text-secondary-text mb-1">Data do Pagamento</label>
-                                            <input 
-                                                type="date" 
-                                                value={newPaymentDate} 
-                                                onChange={(e) => setNewPaymentDate(e.target.value)} 
-                                                className="w-full px-2 py-1.5 text-sm border border-border-color rounded-lg" 
-                                                required
-                                            />
+                                            <label className="block text-[10px] font-black text-secondary-text uppercase mb-1">Data</label>
+                                            <input type="date" value={newPaymentDate} onChange={(e) => setNewPaymentDate(e.target.value)} className="w-full px-3 py-2 text-sm border border-border-color rounded-lg focus:ring-2 focus:ring-apple-blue outline-none" required />
                                         </div>
                                         <div>
-                                            <label className="block text-xs font-medium text-secondary-text mb-1">Tipo de Pagamento</label>
-                                            <select 
-                                                value={newPaymentType} 
-                                                onChange={(e) => setNewPaymentType(e.target.value)} 
-                                                className="w-full px-2 py-1.5 text-sm border border-border-color rounded-lg bg-white"
-                                            >
+                                            <label className="block text-[10px] font-black text-secondary-text uppercase mb-1">Tipo</label>
+                                            <select value={newPaymentType} onChange={(e) => setNewPaymentType(e.target.value)} className="w-full px-3 py-2 text-sm border border-border-color rounded-lg bg-white outline-none">
                                                 {PAYMENT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
                                             </select>
                                         </div>
                                     </div>
-                                    <div>
-                                        <label className="block text-xs font-medium text-secondary-text mb-1">Valor Pago (R$)</label>
-                                        <div className="flex gap-2">
-                                            <input 
-                                                type="number" 
-                                                value={newPaymentValue} 
-                                                onChange={(e) => setNewPaymentValue(parseFloat(e.target.value) || 0)} 
-                                                className="flex-1 px-2 py-1.5 text-sm border border-border-color rounded-lg" 
-                                                placeholder="0,00"
-                                                step="0.01"
-                                                min="0.01"
-                                                required
-                                            />
-                                            <button 
-                                                type="submit" 
-                                                className="bg-apple-blue hover:bg-apple-blue-hover text-white text-sm font-medium px-4 py-1.5 rounded-lg transition-colors"
-                                            >
-                                                Registrar
-                                            </button>
+                                    <div className="flex gap-2 items-end">
+                                        <div className="flex-1">
+                                            <label className="block text-[10px] font-black text-secondary-text uppercase mb-1">Valor (R$)</label>
+                                            <input type="number" value={newPaymentValue || ''} onChange={(e) => setNewPaymentValue(parseFloat(e.target.value) || 0)} className="w-full px-3 py-2 text-sm border border-border-color rounded-lg focus:ring-2 focus:ring-apple-blue outline-none" placeholder="0,00" step="0.01" min="0.01" required />
                                         </div>
+                                        <button type="submit" className="bg-apple-blue hover:bg-apple-blue-hover text-white text-sm font-black px-6 py-2 rounded-lg transition-all shadow-sm">Registrar</button>
                                     </div>
                                 </form>
                             </div>
 
-                            {/* FOOTER ACTIONS */}
                             <div className="flex justify-between items-center pt-2">
-                                 <button
-                                    type="button"
-                                    onClick={() => setIsDeleting(true)}
-                                    className="p-2 text-gray-400 hover:text-apple-red hover:bg-red-50 rounded-full transition-colors"
-                                    title="Excluir lançamento inteiro"
-                                >
-                                    <TrashIcon className="w-5 h-5" />
-                                </button>
-                                <button 
-                                    type="button" 
-                                    onClick={handleCloseModal} 
-                                    className="text-sm text-gray-500 hover:text-gray-800 font-medium px-3 py-2"
-                                >
-                                    Fechar
-                                </button>
+                                 <button type="button" onClick={() => setIsDeleting(true)} className="p-2 text-gray-400 hover:text-apple-red hover:bg-red-50 rounded-full transition-colors"><TrashIcon className="w-5 h-5" /></button>
+                                <button type="button" onClick={handleCloseModal} className="text-sm text-gray-500 hover:text-primary-text font-bold">Fechar</button>
                             </div>
                         </div>
                     )}
                 </Modal>
             )}
 
-            {/* ADD NEW LAUNCH MODAL (MANUAL) */}
+            {/* ADD NEW LAUNCH MODAL */}
             {isAddModalOpen && (
-                <Modal isOpen={isAddModalOpen} onClose={handleCloseModal} title="Adicionar Lançamento" headerClassName="bg-blue-50">
+                <Modal isOpen={isAddModalOpen} onClose={handleCloseModal} title="Novo Lançamento" headerClassName="bg-blue-50">
                     <form onSubmit={handleAddLancamento} className="space-y-4">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                              <div className="md:col-span-2">
-                                <label htmlFor="produtoId" className="block text-sm font-medium text-secondary-text mb-1">Produto/Serviço</label>
-                                <select
-                                    id="produtoId"
-                                    value={newLancamento.produtoId}
-                                    onChange={(e) => setNewLancamento({ ...newLancamento, produtoId: e.target.value })}
-                                    className="w-full px-3 py-2 border border-border-color rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-apple-blue"
-                                    required
-                                >
-                                    <option value="" disabled>Selecione o Serviço</option>
-                                    {products.map(p => (
-                                        <option key={p.id} value={p.id}>{p.name}</option>
-                                    ))}
+                                <label className="block text-sm font-bold text-secondary-text mb-1">Serviço</label>
+                                <select value={newLancamento.produtoId} onChange={(e) => setNewLancamento({ ...newLancamento, produtoId: e.target.value })} className="w-full px-3 py-2 border border-border-color rounded-lg bg-white outline-none focus:ring-2 focus:ring-apple-blue" required>
+                                    <option value="" disabled>Escolha...</option>
+                                    {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                                 </select>
                             </div>
 
                             <div className="md:col-span-2 relative" ref={dropdownRef}>
-                                <label htmlFor="clienteSearch" className="block text-sm font-medium text-secondary-text mb-1">Cliente</label>
+                                <label className="block text-sm font-bold text-secondary-text mb-1">Cliente</label>
                                 <div className="relative">
-                                    <input
-                                        id="clienteSearch"
-                                        type="text"
-                                        className="w-full px-3 py-2 border border-border-color rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-apple-blue pr-10"
-                                        placeholder="Selecione ou busque o cliente..."
-                                        value={clientSearchTerm}
-                                        onChange={(e) => {
-                                            setClientSearchTerm(e.target.value);
-                                            // Clear selected ID if user types something new, to force selection from list or create logic if needed
-                                            // For now, we assume selection must come from list for valid ID
-                                            if (newLancamento.clienteId && e.target.value !== clients.find(c => c.id === newLancamento.clienteId)?.name) {
-                                                setNewLancamento({ ...newLancamento, clienteId: '' });
-                                            }
-                                            setIsClientDropdownOpen(true);
-                                        }}
-                                        onFocus={() => setIsClientDropdownOpen(true)}
-                                        autoComplete="off"
-                                        required={!newLancamento.clienteId} // Required only if no ID selected
-                                    />
-                                    <div 
-                                        className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer text-gray-400 hover:text-primary-text"
-                                        onClick={() => {
-                                            setIsClientDropdownOpen(!isClientDropdownOpen);
-                                            if (!isClientDropdownOpen) {
-                                                // Focus input when opening via arrow
-                                                document.getElementById('clienteSearch')?.focus();
-                                            }
-                                        }}
-                                    >
-                                        <ChevronDownIcon />
-                                    </div>
+                                    <input type="text" className="w-full px-3 py-2 border border-border-color rounded-lg bg-white outline-none pr-10 focus:ring-2 focus:ring-apple-blue" placeholder="Busque o cliente..." value={clientSearchTerm} onChange={(e) => { setClientSearchTerm(e.target.value); if (newLancamento.clienteId && e.target.value !== clients.find(c => c.id === newLancamento.clienteId)?.name) { setNewLancamento({ ...newLancamento, clienteId: '' }); } setIsClientDropdownOpen(true); }} onFocus={() => setIsClientDropdownOpen(true)} autoComplete="off" required={!newLancamento.clienteId} />
+                                    <div className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer text-gray-400" onClick={() => setIsClientDropdownOpen(!isClientDropdownOpen)}><ChevronDownIcon /></div>
                                 </div>
-                                
                                 {isClientDropdownOpen && (
-                                    <div className="absolute z-50 w-full mt-1 bg-white border border-border-color rounded-lg shadow-lg max-h-60 overflow-y-auto animate-fadeIn">
+                                    <div className="absolute z-50 w-full mt-1 bg-white border border-border-color rounded-lg shadow-lg max-h-60 overflow-y-auto">
                                         {filteredClients.length > 0 ? (
                                             filteredClients.map(c => (
-                                                <div
-                                                    key={c.id}
-                                                    className="px-4 py-2 hover:bg-gray-50 cursor-pointer text-sm text-primary-text border-b border-gray-50 last:border-0 flex justify-between items-center"
-                                                    onMouseDown={(e) => {
-                                                        // Use onMouseDown to prevent blur event from firing before click
-                                                        e.preventDefault();
-                                                        setNewLancamento({ ...newLancamento, clienteId: c.id });
-                                                        setClientSearchTerm(c.name);
-                                                        setIsClientDropdownOpen(false);
-                                                    }}
-                                                >
+                                                <div key={c.id} className="px-4 py-2 hover:bg-gray-50 cursor-pointer text-sm text-primary-text border-b border-gray-50 last:border-0 flex justify-between items-center font-medium" onMouseDown={(e) => { e.preventDefault(); setNewLancamento({ ...newLancamento, clienteId: c.id }); setClientSearchTerm(c.name); setIsClientDropdownOpen(false); }}>
                                                     <span>{c.name}</span>
                                                     {c.id === newLancamento.clienteId && <span className="text-apple-blue text-xs font-bold">✓</span>}
                                                 </div>
                                             ))
-                                        ) : (
-                                            <div className="px-4 py-3 text-sm text-gray-400 text-center">Nenhum cliente encontrado.</div>
-                                        )}
+                                        ) : ( <div className="px-4 py-3 text-sm text-gray-400 text-center">Nenhum encontrado.</div> )}
                                     </div>
                                 )}
                             </div>
 
                             <div>
-                                <label htmlFor="dataPrevista" className="block text-sm font-medium text-secondary-text mb-1">Data do Serviço</label>
-                                <input
-                                    type="date"
-                                    id="dataPrevista"
-                                    value={newLancamento.dataPrevista}
-                                    onChange={(e) => setNewLancamento({ ...newLancamento, dataPrevista: e.target.value })}
-                                    className="w-full px-3 py-2 border border-border-color rounded-lg bg-white"
-                                    required
-                                />
+                                <label className="block text-sm font-bold text-secondary-text mb-1">Vencimento</label>
+                                <input type="date" value={newLancamento.dataPrevista} onChange={(e) => setNewLancamento({ ...newLancamento, dataPrevista: e.target.value })} className="w-full px-3 py-2 border border-border-color rounded-lg bg-white outline-none focus:ring-2 focus:ring-apple-blue" required />
                             </div>
 
                              <div>
-                                <label htmlFor="quantity" className="block text-sm font-medium text-secondary-text mb-1">Quantidade</label>
-                                <input
-                                    type="number"
-                                    id="quantity"
-                                    min="1"
-                                    value={quantity}
-                                    onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
-                                    className="w-full px-3 py-2 border border-border-color rounded-lg bg-white"
-                                    required
-                                />
+                                <label className="block text-sm font-bold text-secondary-text mb-1">Quantidade</label>
+                                <input type="number" min="1" value={quantity} onChange={(e) => setQuantity(parseInt(e.target.value) || 1)} className="w-full px-3 py-2 border border-border-color rounded-lg bg-white outline-none" required />
                             </div>
 
                             <div>
-                                <label htmlFor="valorPrevisto" className="block text-sm font-medium text-secondary-text mb-1">Valor Total (R$)</label>
-                                <input
-                                    type="number"
-                                    id="valorPrevisto"
-                                    value={newLancamento.valorPrevisto}
-                                    onChange={(e) => setNewLancamento({ ...newLancamento, valorPrevisto: parseFloat(e.target.value) || 0 })}
-                                    className="w-full px-3 py-2 border border-border-color rounded-lg bg-white focus:ring-2 focus:ring-apple-blue"
-                                />
+                                <label className="block text-sm font-bold text-secondary-text mb-1">Valor Total (R$)</label>
+                                <input type="number" value={newLancamento.valorPrevisto || ''} onChange={(e) => setNewLancamento({ ...newLancamento, valorPrevisto: parseFloat(e.target.value) || 0 })} className="w-full px-3 py-2 border border-border-color rounded-lg bg-white outline-none focus:ring-2 focus:ring-apple-blue" required />
                             </div>
                             
                             <div>
-                                <label htmlFor="paymentCondition" className="block text-sm font-medium text-secondary-text mb-1">Condição de Pagamento</label>
-                                <select
-                                    id="paymentCondition"
-                                    value={paymentCondition}
-                                    onChange={(e) => setPaymentCondition(e.target.value)}
-                                    className="w-full px-3 py-2 border border-border-color rounded-lg bg-white"
-                                >
-                                    {PAYMENT_CONDITIONS.map(cond => (
-                                        <option key={cond.label} value={cond.label}>{cond.label}</option>
-                                    ))}
+                                <label className="block text-sm font-bold text-secondary-text mb-1">Pagamento Inicial</label>
+                                <select value={paymentCondition} onChange={(e) => setPaymentCondition(e.target.value)} className="w-full px-3 py-2 border border-border-color rounded-lg bg-white outline-none">
+                                    {PAYMENT_CONDITIONS.map(cond => <option key={cond.label} value={cond.label}>{cond.label}</option>)}
                                 </select>
-                            </div>
-
-                             <div className="md:col-span-2">
-                                <label htmlFor="valorRecebido" className="block text-sm font-medium text-secondary-text mb-1">Valor Recebido (calculado)</label>
-                                <input
-                                    type="text"
-                                    id="valorRecebido"
-                                    value={formatCurrency(newLancamento.valorRecebido)}
-                                    disabled
-                                    className="w-full px-3 py-2 border border-border-color rounded-lg bg-gray-100 text-apple-green font-semibold"
-                                />
-                            </div>
-
-                            <div className="md:col-span-2">
-                                <label htmlFor="newObservacoes" className="block text-sm font-medium text-secondary-text mb-1">Observações</label>
-                                <textarea
-                                    id="newObservacoes"
-                                    rows={3}
-                                    value={newLancamento.observacoes}
-                                    onChange={(e) => setNewLancamento({ ...newLancamento, observacoes: e.target.value })}
-                                    className="w-full px-3 py-2 border border-border-color rounded-lg bg-white"
-                                />
                             </div>
                         </div>
                        
                         <div className="pt-4 flex justify-end gap-3">
-                            <button type="button" onClick={handleCloseModal} className="rounded-full px-4 py-2 bg-white border border-gray-200 text-gray-700 font-medium hover:bg-gray-100 transition-colors">Cancelar</button>
-                            <button type="submit" className="rounded-full px-5 py-2 bg-apple-blue text-white font-medium hover:bg-apple-blue-hover transition-colors">Salvar Lançamento</button>
+                            <button type="button" onClick={handleCloseModal} className="rounded-full px-5 py-2 font-bold text-secondary-text transition-colors">Cancelar</button>
+                            <button type="submit" className="rounded-full px-8 py-2 bg-apple-blue text-white font-black shadow-md hover:bg-apple-blue-hover transition-colors">Salvar Lançamento</button>
                         </div>
                     </form>
                 </Modal>

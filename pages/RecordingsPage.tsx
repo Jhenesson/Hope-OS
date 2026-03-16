@@ -1,9 +1,13 @@
+
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Recording, RecordingStatus, Client, Product, PaymentStatus, Lead, LeadStatus } from '../types';
+import html2canvas from 'html2canvas';
+/* Fix: Removed non-existent Lead type from imports */
+import { Recording, RecordingStatus, Client, Product, PaymentStatus, LeadStatus } from '../types';
 import { Modal } from '../components/Modal';
 import { useAppContext } from '../context/AppContext';
+import { sendWhatsAppMessage } from '../utils/whatsapp';
 import { AbstractAvatar } from '../components/AbstractAvatar';
-import { RecordingsIcon, TrashIcon, CalendarIcon, DownloadIcon, ClockIcon } from '../components/icons/Icons';
+import { RecordingsIcon, TrashIcon, CalendarIcon, DownloadIcon, ClockIcon, WhatsAppIcon, CheckIcon } from '../components/icons/Icons';
 
 const statusColors: { [key in RecordingStatus]: string } = {
   [RecordingStatus.Agendada]: 'bg-blue-100 text-blue-800',
@@ -146,7 +150,8 @@ const RecordingCalendar: React.FC<{ recordings: Recording[], clientsById: Record
 // --- RecordingsPage Component ---
 export const RecordingsPage: React.FC = () => {
   const { appState, setAppState } = useAppContext();
-  const { recordings, clients, products, leads } = appState;
+  /* Fix: Removed reference to nonexistent leads property in appState */
+  const { recordings, clients, products } = appState;
 
   const [selectedRec, setSelectedRec] = useState<Recording | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -169,6 +174,107 @@ export const RecordingsPage: React.FC = () => {
   };
   const [newRec, setNewRec] = useState(initialNewRecState);
   const [editedRec, setEditedRec] = useState<Recording | null>(null);
+  const [isSharing, setIsSharing] = useState(false);
+  const [isSent, setIsSent] = useState(false);
+  const [googleConnected, setGoogleConnected] = useState(false);
+  const [isSyncingGoogle, setIsSyncingGoogle] = useState(false);
+
+  useEffect(() => {
+      checkGoogleStatus();
+  }, []);
+
+  const checkGoogleStatus = async () => {
+      if (appState.googleTokens) {
+          setGoogleConnected(true);
+          return;
+      }
+      try {
+          const res = await fetch('/api/auth/google/status');
+          const data = await res.json();
+          setGoogleConnected(data.connected);
+      } catch (error) {
+          console.error('Error checking Google status:', error);
+      }
+  };
+
+  const syncRecordingToGoogle = async (rec: Recording, method: 'POST' | 'PUT' | 'DELETE' = 'POST') => {
+      if (!googleConnected && !appState.googleTokens) return null;
+
+      try {
+          const client = clientsById[rec.clientId];
+          const product = productsById[rec.productId];
+          
+          const startDateTime = `${rec.data}T${rec.horaInicio}:00`;
+          const endDateTime = `${rec.data}T${rec.horaFim}:00`;
+
+          const event = {
+              summary: `Gravação: ${client?.name} - ${product?.name}`,
+              description: `Cliente: ${client?.name}\nProduto: ${product?.name}\nNotas: ${rec.notes || 'Nenhuma'}`,
+              start: startDateTime,
+              end: endDateTime,
+          };
+
+          const url = method === 'POST' ? '/api/calendar/sync' : `/api/calendar/sync/${rec.googleEventId}`;
+          
+          if (method !== 'POST' && !rec.googleEventId) {
+              // If we don't have an ID but it's an update, try to create it instead
+              if (method === 'PUT') return syncRecordingToGoogle(rec, 'POST');
+              return null;
+          }
+
+          const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+          if (appState.googleTokens) {
+              headers['x-google-tokens'] = typeof appState.googleTokens === 'string' 
+                ? appState.googleTokens 
+                : JSON.stringify(appState.googleTokens);
+          }
+
+          const res = await fetch(url, {
+              method: method,
+              headers: headers,
+              body: method === 'DELETE' ? undefined : JSON.stringify({ event }),
+          });
+
+          if (res.ok) {
+              const data = await res.json();
+              return data.eventId || true;
+          } else {
+              const data = await res.json();
+              console.error(`Erro ao sincronizar: ${data.error}`);
+              if (res.status === 401) {
+                  setGoogleConnected(false);
+                  setAppState(prev => ({ ...prev, googleTokens: undefined }));
+              }
+              return null;
+          }
+      } catch (error) {
+          console.error('Error syncing to Google:', error);
+          return null;
+      }
+  };
+
+  const handleSyncToGoogle = async () => {
+      if (!selectedRec || !googleConnected) return;
+
+      setIsSyncingGoogle(true);
+      const eventId = await syncRecordingToGoogle(selectedRec, selectedRec.googleEventId ? 'PUT' : 'POST');
+      if (eventId) {
+          if (typeof eventId === 'string' && eventId !== selectedRec.googleEventId) {
+              const updatedRec = { ...selectedRec, googleEventId: eventId };
+              setAppState(prev => ({
+                  ...prev,
+                  recordings: prev.recordings.map(r => r.id === updatedRec.id ? updatedRec : r)
+              }));
+              setSelectedRec(updatedRec);
+          }
+          alert('Evento sincronizado com o Google Agenda!');
+      } else {
+          alert('Erro ao sincronizar com o Google Agenda.');
+      }
+      setIsSyncingGoogle(false);
+  };
+
+  const cardRef = useRef<HTMLDivElement>(null);
 
   // Searchable Dropdown States
   const [clientSearchTerm, setClientSearchTerm] = useState('');
@@ -224,10 +330,11 @@ export const RecordingsPage: React.FC = () => {
   }, [sidebarRecordingsWithData]);
   
    const clientAndLeadOptions = useMemo(() => {
-    const clientOptions = clients.map(c => ({ value: c.id, label: `${c.name} (Cliente)`, type: 'client' as const, name: c.name }));
-    const leadOptions = leads.filter(l => l.status !== LeadStatus.Convertido && l.status !== LeadStatus.Perdido).map(l => ({ value: l.id, label: `${l.name} (Lead)`, type: 'lead' as const, name: l.name }));
+    /* Fix: derive leads list directly from clients array by filtering for status 'Lead' */
+    const clientOptions = clients.filter(c => c.status !== 'Lead').map(c => ({ value: c.id, label: `${c.name} (Cliente)`, type: 'client' as const, name: c.name }));
+    const leadOptions = clients.filter(c => c.status === 'Lead' && c.leadStage !== LeadStatus.Convertido).map(l => ({ value: l.id, label: `${l.name} (Lead)`, type: 'lead' as const, name: l.name }));
     return [...clientOptions, ...leadOptions];
-  }, [clients, leads]);
+  }, [clients]);
 
   // Filter options based on search
   const filteredClientOptions = useMemo(() => {
@@ -327,55 +434,49 @@ export const RecordingsPage: React.FC = () => {
     setSelectedRec(rec);
     setEditedRec(rec);
     setIsEditing(false);
+    setIsSent(false);
   };
   
-  const handleAddNewRec = (e: React.FormEvent) => {
+  const handleAddNewRec = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newRec.clientId || !newRec.productId || !newRec.data) return;
 
-    const selectedOption = clientAndLeadOptions.find(opt => opt.value === newRec.clientId);
-    let finalClientId = newRec.clientId;
-    let newClient: Client | null = null;
-    let leadToConvertId: string | null = null;
-    
-    if (selectedOption?.type === 'lead') {
-        const leadToConvert = leads.find(l => l.id === newRec.clientId);
-        if (leadToConvert) {
-            newClient = {
-                id: `client-${Date.now()}`,
-                name: leadToConvert.name,
-                whatsapp: leadToConvert.whatsapp || '',
-                email: leadToConvert.email || '',
-                gender: leadToConvert.gender,
-                status: 'Active',
-                lastProjectDate: new Date().toISOString().split('T')[0],
-            };
-            leadToConvertId = leadToConvert.id;
-            finalClientId = newClient.id;
-        }
-    }
-
-    const recToAdd: Recording = {
-        id: `rec-${Date.now()}`,
+    /* Fix: Handle conversion of leads to active clients when a recording is scheduled */
+    const recId = `rec-${Date.now()}`;
+    let recToAdd: Recording = {
+        id: recId,
         ...newRec,
-        clientId: finalClientId,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
     };
     
-    setAppState(prev => {
-        let updatedLeads = prev.leads;
-        let updatedClients = prev.clients;
-        
-        if(newClient && leadToConvertId) {
-            updatedClients = [...prev.clients, newClient];
-            updatedLeads = prev.leads.map(l => l.id === leadToConvertId ? { ...l, status: LeadStatus.Convertido } : l);
+    // Sync to Google Calendar if connected
+    if (googleConnected) {
+        const googleEventId = await syncRecordingToGoogle(recToAdd, 'POST');
+        if (googleEventId && typeof googleEventId === 'string') {
+            recToAdd.googleEventId = googleEventId;
         }
+    }
+
+    setAppState(prev => {
+        const updatedClients = prev.clients.map(c => {
+            if (c.id === newRec.clientId) {
+                const isLead = c.status === 'Lead';
+                return {
+                    ...c,
+                    status: isLead ? 'Active' as const : c.status,
+                    leadStage: isLead ? LeadStatus.Convertido : c.leadStage,
+                    lastProjectDate: newRec.data,
+                    // Save recording notes to client notes if provided
+                    notes: newRec.notes ? `${c.notes ? c.notes + '\n' : ''}[${new Date().toLocaleDateString('pt-BR')}] ${newRec.notes}` : c.notes
+                };
+            }
+            return c;
+        });
 
         return {
             ...prev,
             clients: updatedClients,
-            leads: updatedLeads,
             recordings: [recToAdd, ...prev.recordings],
         }
     });
@@ -385,14 +486,38 @@ export const RecordingsPage: React.FC = () => {
     setClientSearchTerm('');
   };
   
-  const handleSaveChanges = (e: React.FormEvent) => {
+  const handleSaveChanges = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editedRec) return;
-    const updatedRec = { ...editedRec, updatedAt: new Date().toISOString() };
-    setAppState(prev => ({
-        ...prev,
-        recordings: prev.recordings.map(r => r.id === updatedRec.id ? updatedRec : r)
-    }));
+    
+    let updatedRec = { ...editedRec, updatedAt: new Date().toISOString() };
+    
+    // Sync to Google Calendar if connected
+    if (googleConnected) {
+        const googleEventId = await syncRecordingToGoogle(updatedRec, updatedRec.googleEventId ? 'PUT' : 'POST');
+        if (googleEventId && typeof googleEventId === 'string') {
+            updatedRec.googleEventId = googleEventId;
+        }
+    }
+
+    setAppState(prev => {
+        // Also update client notes if they changed in the recording
+        const updatedClients = prev.clients.map(c => {
+            if (c.id === updatedRec.clientId && updatedRec.notes !== selectedRec?.notes) {
+                return {
+                    ...c,
+                    notes: updatedRec.notes ? `${c.notes ? c.notes + '\n' : ''}[${new Date().toLocaleDateString('pt-BR')}] ${updatedRec.notes}` : c.notes
+                };
+            }
+            return c;
+        });
+
+        return {
+            ...prev,
+            clients: updatedClients,
+            recordings: prev.recordings.map(r => r.id === updatedRec.id ? updatedRec : r)
+        };
+    });
     setSelectedRec(updatedRec);
     setIsEditing(false);
   };
@@ -411,8 +536,14 @@ export const RecordingsPage: React.FC = () => {
       }
   };
 
-  const handleDeleteRecording = () => {
+  const handleDeleteRecording = async () => {
     if (!recordingToDelete) return;
+    
+    // Sync to Google Calendar if connected
+    if (googleConnected && recordingToDelete.googleEventId) {
+        await syncRecordingToGoogle(recordingToDelete, 'DELETE');
+    }
+
     setAppState(prev => ({
         ...prev,
         recordings: prev.recordings.filter(r => r.id !== recordingToDelete.id)
@@ -458,6 +589,79 @@ export const RecordingsPage: React.FC = () => {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+  };
+
+  const handleSendTextOnly = async () => {
+    if (!selectedRec) return;
+    
+    setIsSharing(true);
+    try {
+        const client = clientsById[selectedRec.clientId];
+        const product = productsById[selectedRec.productId];
+        const date = new Date(selectedRec.data + 'T12:00:00').toLocaleDateString('pt-BR');
+        const message = `Olá ${client?.name}!\n\nConfirmando sua gravação no *Hope Rise Studios*:\n\n*Gravação:* ${product?.name}\n*Data:* ${date}\n*Horário:* ${selectedRec.horaInicio} às ${selectedRec.horaFim}`;
+        
+        const phone = client?.whatsapp.replace(/\D/g, '');
+        const success = await sendWhatsAppMessage(phone || '', message, appState.whatsappSendMethod);
+        if (success) {
+            setIsSent(true);
+        }
+    } catch (error) {
+        console.error('Erro ao enviar texto:', error);
+        alert('Erro ao enviar mensagem.');
+    } finally {
+        setIsSharing(false);
+    }
+  };
+
+  const handleShareRecording = async () => {
+    if (!selectedRec || !cardRef.current) return;
+    
+    setIsSharing(true);
+    try {
+        const canvas = await html2canvas(cardRef.current, {
+            scale: 2, // Scale 2 is enough for high quality and much smaller than 3
+            backgroundColor: null, // Transparent background
+            logging: false,
+            useCORS: true,
+            removeContainer: true
+        });
+        
+        const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/png'));
+        
+        if (blob) {
+            try {
+                const data = [new ClipboardItem({ 'image/png': blob })];
+                await navigator.clipboard.write(data);
+                
+                const client = clientsById[selectedRec.clientId];
+                const product = productsById[selectedRec.productId];
+                const date = new Date(selectedRec.data + 'T12:00:00').toLocaleDateString('pt-BR');
+                
+                const message = `Olá ${client?.name}!\n\nConfirmando sua gravação no *Hope Rise Studios*:\n\n*Gravação:* ${product?.name}\n*Data:* ${date}\n*Horário:* ${selectedRec.horaInicio} às ${selectedRec.horaFim}`;
+                
+                const phone = client?.whatsapp.replace(/\D/g, '');
+                const base64Image = canvas.toDataURL('image/jpeg', 0.8);
+                const success = await sendWhatsAppMessage(phone || '', message, appState.whatsappSendMethod, base64Image);
+                if (success) {
+                    setIsSent(true);
+                }
+            } catch (err) {
+                console.error('Erro ao copiar para o clipboard:', err);
+                // Fallback: download the image if clipboard fails
+                const link = document.createElement('a');
+                link.download = `confirmacao-${selectedRec.id}.png`;
+                link.href = canvas.toDataURL();
+                link.click();
+                alert('A imagem foi baixada. Você pode enviá-la manualmente pelo WhatsApp.');
+            }
+        }
+    } catch (error) {
+        console.error('Erro ao gerar imagem:', error);
+        alert('Erro ao gerar imagem de confirmação.');
+    } finally {
+        setIsSharing(false);
+    }
   };
 
   // Date formatting helper for the card
@@ -581,6 +785,10 @@ export const RecordingsPage: React.FC = () => {
                             {Object.values(RecordingStatus).map(s => <option key={s} value={s}>{s}</option>)}
                         </select>
                     </div>
+                    <div className="col-span-2">
+                        <label htmlFor="notes" className="block text-sm font-medium text-secondary-text mb-1">Notas/Observações (Serão salvas no contato)</label>
+                        <textarea name="notes" value={editedRec.notes} onChange={(e) => setEditedRec({...editedRec, notes: e.target.value})} rows={3} className="w-full px-3 py-2 border border-border-color rounded-lg bg-white"></textarea>
+                    </div>
                </div>
               <div className="pt-4 flex justify-end gap-3">
                   <button type="button" onClick={() => { setIsEditing(false); setEditedRec(selectedRec); }} className="rounded-full px-4 py-2 bg-white border border-gray-200 text-gray-700 font-medium hover:bg-gray-100 transition-colors">Cancelar</button>
@@ -589,74 +797,77 @@ export const RecordingsPage: React.FC = () => {
             </form>
           ) : (
              // PREMIUM CONFIRMATION CARD
-             <div className="flex flex-col items-center">
-                 <div className="bg-white rounded-3xl overflow-hidden shadow-2xl border border-gray-100 w-full max-w-md relative">
-                    {/* Gradient Top Bar */}
-                    <div className="h-3 w-full bg-gradient-to-r from-[#007AFF] via-[#AF52DE] to-[#FF2D55]"></div>
+             <div className="flex flex-col items-center w-full">
+                 {/* Card Wrapper for Capture */}
+                 <div className="p-6 bg-transparent w-full flex justify-center">
+                    <div ref={cardRef} className="bg-white rounded-[40px] overflow-hidden shadow-2xl border border-gray-100 w-full max-w-md relative">
+                        {/* Gradient Top Bar */}
+                        <div className="h-3 w-full bg-gradient-to-r from-[#007AFF] via-[#AF52DE] to-[#FF2D55]"></div>
 
-                    <div className="p-8 space-y-6">
-                        {/* Header */}
-                        <div className="text-center">
-                            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-[0.2em] mb-3">HOPE RISE STUDIOS</h3>
-                            <h2 className="text-2xl font-bold text-gray-900 leading-tight">Confirmação da<br/>Sua Gravação</h2>
-                        </div>
+                        <div className="p-8 space-y-6">
+                            {/* Header */}
+                            <div className="text-center">
+                                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-[0.2em] mb-3">HOPE RISE STUDIOS</h3>
+                                <h2 className="text-2xl font-bold text-gray-900 leading-tight">Confirmação da<br/>Sua Gravação</h2>
+                            </div>
 
-                        {/* Hero Date & Time */}
-                        <div className="bg-gray-50 rounded-2xl p-6 text-center border border-gray-100/80">
-                            <p className="text-indigo-600 font-bold text-xs uppercase tracking-wide mb-1">
-                                {formatCardDate(selectedRec.data).weekday}
-                            </p>
-                            <p className="text-3xl font-bold text-gray-900 mb-2">
-                                {formatCardDate(selectedRec.data).day} de {formatCardDate(selectedRec.data).month}
-                            </p>
-                            <div className="flex items-center justify-center gap-2 text-gray-600 mt-2 bg-white px-3 py-1 rounded-full inline-flex shadow-sm border border-gray-100">
-                                <ClockIcon className="w-4 h-4 text-gray-400" />
-                                <span className="text-base font-medium font-mono tracking-tight">{selectedRec.horaInicio} — {selectedRec.horaFim}</span>
+                            {/* Hero Date & Time */}
+                            <div className="bg-gray-50 rounded-2xl p-6 text-center border border-gray-100/80">
+                                <p className="text-indigo-600 font-bold text-xs uppercase tracking-wide mb-1">
+                                    {formatCardDate(selectedRec.data).weekday}
+                                </p>
+                                <p className="text-3xl font-bold text-gray-900 mb-2">
+                                    {formatCardDate(selectedRec.data).day} de {formatCardDate(selectedRec.data).month}
+                                </p>
+                                <div className="flex items-center justify-center gap-2 text-gray-600 mt-2 bg-white px-3 py-1 rounded-full inline-flex shadow-sm border border-gray-100">
+                                    <ClockIcon className="w-4 h-4 text-gray-400" />
+                                    <span className="text-base font-medium font-mono tracking-tight">{selectedRec.horaInicio} — {selectedRec.horaFim}</span>
+                                </div>
                             </div>
-                        </div>
 
-                        {/* Details List */}
-                        <div className="space-y-4 px-2">
-                            <div className="flex justify-between items-center border-b border-gray-50 pb-2">
-                                <span className="text-sm text-gray-400 font-medium">Cliente</span>
-                                <span className="text-sm font-semibold text-gray-900">{clientsById[selectedRec.clientId]?.name}</span>
+                            {/* Details List */}
+                            <div className="space-y-4 px-2">
+                                <div className="flex justify-between items-center border-b border-gray-50 pb-2">
+                                    <span className="text-sm text-gray-400 font-medium">Cliente</span>
+                                    <span className="text-sm font-semibold text-gray-900">{clientsById[selectedRec.clientId]?.name}</span>
+                                </div>
+                                <div className="flex justify-between items-center border-b border-gray-50 pb-2">
+                                    <span className="text-sm text-gray-400 font-medium">Gravação</span>
+                                    <span className="text-sm font-bold text-indigo-600">{productsById[selectedRec.productId]?.name}</span>
+                                </div>
+                                <div className="flex justify-between items-center border-b border-gray-50 pb-2">
+                                    <span className="text-sm text-gray-400 font-medium">Duração</span>
+                                    <span className="text-sm font-medium text-gray-900">{selectedRec.horasEstimadas}h</span>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                    <span className="text-sm text-gray-400 font-medium">Status</span>
+                                    <span className={`px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide rounded-full ${statusColors[selectedRec.status]}`}>
+                                        {selectedRec.status}
+                                    </span>
+                                </div>
                             </div>
-                            <div className="flex justify-between items-center border-b border-gray-50 pb-2">
-                                <span className="text-sm text-gray-400 font-medium">Serviço</span>
-                                <span className="text-sm font-bold text-indigo-600">{productsById[selectedRec.productId]?.name}</span>
-                            </div>
-                            <div className="flex justify-between items-center border-b border-gray-50 pb-2">
-                                <span className="text-sm text-gray-400 font-medium">Duração</span>
-                                <span className="text-sm font-medium text-gray-900">{selectedRec.horasEstimadas}h</span>
-                            </div>
-                             <div className="flex justify-between items-center">
-                                <span className="text-sm text-gray-400 font-medium">Status</span>
-                                <span className={`px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide rounded-full ${statusColors[selectedRec.status]}`}>
-                                    {selectedRec.status}
-                                </span>
-                            </div>
-                        </div>
 
-                        {/* Notes Section */}
-                        {selectedRec.notes && (
-                            <div className="bg-yellow-50/50 p-4 rounded-xl border border-yellow-100/50 text-center">
-                                <p className="text-sm text-yellow-800 italic">
-                                    "{selectedRec.notes}"
+                            {/* Notes Section */}
+                            {selectedRec.notes && (
+                                <div className="bg-yellow-50/50 p-4 rounded-xl border border-yellow-100/50 text-center">
+                                    <p className="text-sm text-yellow-800 italic">
+                                        "{selectedRec.notes}"
+                                    </p>
+                                </div>
+                            )}
+
+                            {/* Footer */}
+                            <div className="text-center pt-4 border-t border-gray-100">
+                                <p className="text-[10px] font-medium text-gray-400 tracking-widest uppercase">
+                                    Hope Rise • Produção Musical & Áudio/Vídeo
                                 </p>
                             </div>
-                        )}
-
-                        {/* Footer */}
-                        <div className="text-center pt-4 border-t border-gray-100">
-                            <p className="text-[10px] font-medium text-gray-400 tracking-widest uppercase">
-                                Hope Rise • Produção Musical & Áudio/Vídeo
-                            </p>
                         </div>
                     </div>
                  </div>
 
                  {/* Action Buttons Outside Card */}
-                 <div className="mt-6 flex items-center gap-4">
+                 <div className="mt-6 flex flex-wrap items-center justify-center gap-4 w-full pb-8">
                      <button
                         onClick={() => {
                             if (selectedRec) {
@@ -676,6 +887,84 @@ export const RecordingsPage: React.FC = () => {
                      >
                          Fechar
                      </button>
+
+                     <button
+                        onClick={() => {
+                            if (selectedRec) {
+                                const client = clientsById[selectedRec.clientId];
+                                const product = productsById[selectedRec.productId];
+                                const startStr = `${selectedRec.data.replace(/-/g, '')}T${selectedRec.horaInicio.replace(':', '')}00`;
+                                const endStr = `${selectedRec.data.replace(/-/g, '')}T${selectedRec.horaFim.replace(':', '')}00`;
+                                const nowStr = new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+
+                                let ics = "BEGIN:VCALENDAR\nVERSION:2.0\nBEGIN:VEVENT\n";
+                                ics += `UID:${selectedRec.id}@hopeos.app\n`;
+                                ics += `DTSTAMP:${nowStr}\n`;
+                                ics += `DTSTART:${startStr}\n`;
+                                ics += `DTEND:${endStr}\n`;
+                                ics += `SUMMARY:${product?.name || 'Gravação'} - ${client?.name || 'Cliente'}\n`;
+                                ics += `DESCRIPTION:Cliente: ${client?.name || ''}\\nServiço: ${product?.name || ''}\\nNotas: ${selectedRec.notes || ''}\n`;
+                                ics += "END:VEVENT\nEND:VCALENDAR";
+
+                                const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+                                const link = document.createElement('a');
+                                link.href = window.URL.createObjectURL(blob);
+                                link.setAttribute('download', `gravacao_${selectedRec.id}.ics`);
+                                document.body.appendChild(link);
+                                link.click();
+                                document.body.removeChild(link);
+                            }
+                        }}
+                        className="px-6 py-2 bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 rounded-full text-sm font-bold transition-colors shadow-sm flex items-center gap-2"
+                     >
+                        <CalendarIcon className="w-4 h-4 text-gray-400" />
+                        Add à Agenda (Manual)
+                     </button>
+
+                     <button
+                        onClick={handleShareRecording}
+                        disabled={isSharing || isSent}
+                        className={`px-6 py-2 rounded-full text-sm font-bold transition-all shadow-md flex items-center gap-2 ${isSent ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-green-600 text-white hover:bg-green-700'} ${isSharing ? 'opacity-50 cursor-not-allowed' : ''}`}
+                     >
+                        {isSharing ? (
+                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                        ) : isSent ? (
+                            <CheckIcon className="w-4 h-4" />
+                        ) : (
+                            <WhatsAppIcon className="w-4 h-4" />
+                        )}
+                        {isSharing ? 'Gerando...' : isSent ? 'Enviado!' : 'Enviar c/ Imagem'}
+                     </button>
+
+                     <button
+                        onClick={handleSendTextOnly}
+                        disabled={isSharing || isSent}
+                        className={`px-6 py-2 rounded-full text-sm font-bold transition-all shadow-md flex items-center gap-2 ${isSent ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-white text-green-600 border border-green-600 hover:bg-green-50'} ${isSharing ? 'opacity-50 cursor-not-allowed' : ''}`}
+                     >
+                        {isSharing ? (
+                            <div className="w-4 h-4 border-2 border-green-600/30 border-t-green-600 rounded-full animate-spin"></div>
+                        ) : isSent ? (
+                            <CheckIcon className="w-4 h-4" />
+                        ) : (
+                            <WhatsAppIcon className="w-4 h-4" />
+                        )}
+                        {isSharing ? 'Enviando...' : isSent ? 'Enviado!' : 'Enviar apenas Texto'}
+                     </button>
+
+                     {googleConnected && (
+                         <button
+                            onClick={handleSyncToGoogle}
+                            disabled={isSyncingGoogle}
+                            className={`px-6 py-2 bg-red-600 text-white rounded-full text-sm font-bold transition-all shadow-md flex items-center gap-2 hover:bg-red-700 ${isSyncingGoogle ? 'opacity-50 cursor-not-allowed' : ''}`}
+                         >
+                            {isSyncingGoogle ? (
+                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                            ) : (
+                                <CalendarIcon className="w-4 h-4" />
+                            )}
+                            {isSyncingGoogle ? 'Sincronizando...' : 'Sincronizar Agenda'}
+                         </button>
+                     )}
 
                      <button
                         onClick={() => setIsEditing(true)}
@@ -717,6 +1006,7 @@ export const RecordingsPage: React.FC = () => {
                                 onClick={() => {
                                     setIsClientDropdownOpen(!isClientDropdownOpen);
                                     if (!isClientDropdownOpen) {
+                                        // Focus input when opening via arrow
                                         document.getElementById('clientSearch')?.focus();
                                     }
                                 }}
@@ -733,6 +1023,7 @@ export const RecordingsPage: React.FC = () => {
                                             key={opt.value}
                                             className="px-4 py-2 hover:bg-gray-50 cursor-pointer text-sm text-primary-text border-b border-gray-50 last:border-0 flex justify-between items-center"
                                             onMouseDown={(e) => {
+                                                // Use onMouseDown to prevent blur event from firing before click
                                                 e.preventDefault();
                                                 setNewRec(prev => ({ ...prev, clientId: opt.value }));
                                                 setClientSearchTerm(opt.label);

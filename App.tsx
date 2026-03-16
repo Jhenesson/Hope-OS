@@ -4,12 +4,13 @@ import { Sidebar } from './components/Sidebar';
 import { ClientsPage } from './pages/ClientsPage';
 import { FinancialPage } from './pages/FinancialPage';
 import { PlaceholderPage } from './pages/PlaceholderPage';
-import { CalendarPage } from './pages/CalendarPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { EventsPage } from './pages/EventsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { RecordingsPage } from './pages/RecordingsPage';
 import { MarketingPage } from './pages/MarketingPage';
+import { MusiciansPage } from './pages/MusiciansPage';
+import { ProjectsPage } from './pages/ProjectsPage';
 import { Page } from './types';
 import { AppProvider } from './context/AppContext';
 
@@ -28,12 +29,12 @@ const App: React.FC = () => {
         return <ClientsPage />;
       case 'Financeiro':
         return <FinancialPage />;
-      case 'Tarefas & Calendário':
-        return <CalendarPage />;
       case 'Eventos':
         return <EventsPage />;
+      case 'Músicos':
+        return <MusiciansPage />;
       case 'Projetos':
-        return <PlaceholderPage title={activePage} />;
+        return <ProjectsPage />;
       case 'Configurações':
         return <SettingsPage />;
       default:

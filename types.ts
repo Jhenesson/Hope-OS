@@ -1,35 +1,94 @@
 
-export type Page = 'Início' | 'Produtos' | 'Clientes' | 'Marketing' | 'Gravações' | 'Projetos' | 'Eventos' | 'Financeiro' | 'Tarefas & Calendário' | 'Configurações';
+export type Page = 'Início' | 'Produtos' | 'Clientes' | 'Marketing' | 'Gravações' | 'Projetos' | 'Eventos' | 'Financeiro' | 'Configurações' | 'Músicos';
 
 export enum LeadStatus {
   Novo = 'Novo',
   EmConversa = 'Em Conversa',
-  Fechamento = 'Fechamento',
+  Esfriou = 'Esfriou',
   Convertido = 'Convertido',
-  Perdido = 'Perdido',
 }
 
-export interface Lead {
-  id: string;
-  name: string;
-  company: string;
-  gender: 'male' | 'female';
-  status: LeadStatus;
-  lastContact: string;
-  email?: string;
-  whatsapp?: string;
-  notes?: string; // Quick notes
-  nextFollowUp?: string; // YYYY-MM-DD schedule
+export enum ProductionStage {
+    PreProducao = 'Pré-produção',
+    Gravacao = 'Gravação',
+    Edicao = 'Edição/Afinação',
+    Mixagem = 'Mixagem',
+    Masterizacao = 'Masterização',
+    Revisao = 'Revisão do Cliente',
+    Finalizado = 'Finalizado',
+}
+
+export enum TrackStatus {
+    AFazer = 'A fazer',
+    EmAndamento = 'Em andamento',
+    Concluido = 'Concluído',
+}
+
+export interface ProjectTrack {
+    id: string;
+    projectId: string;
+    title: string;
+    statusPreProd: TrackStatus;
+    statusRec: TrackStatus;
+    statusEdit: TrackStatus;
+    statusMix: TrackStatus;
+    statusMaster: TrackStatus;
+    notes?: string;
+    order: number;
+}
+
+export interface Project {
+    id: string;
+    name: string;
+    clientId: string;
+    stage: ProductionStage;
+    progress: number; // 0-100
+    folderLink?: string;
+    deadline?: string;
+    musiciansIds: string[];
+    notes?: string;
+    createdAt: string;
+    updatedAt: string;
+    isComplex?: boolean; // Se True, habilita a gestão de faixas
+}
+
+export interface ClientActivity {
+    id: string;
+    type: 'note' | 'whatsapp_import' | 'system' | 'task';
+    content: string;
+    date: string; // ISO string
 }
 
 export interface Client {
   id: string;
   name: string;
+  company?: string;
   email?: string;
   whatsapp: string;
   gender: 'male' | 'female';
   status: 'Active' | 'Inactive' | 'Lead';
   lastProjectDate: string;
+  // Lead specific fields
+  leadStage?: LeadStatus;
+  nextFollowUp?: string; // YYYY-MM-DD
+  notes?: string;
+  history?: ClientActivity[];
+  createdAt?: string;
+}
+
+export interface Musician {
+    id: string;
+    name: string;
+    instruments: string[]; 
+    cacheValue: number;
+    pixKey: string;
+    whatsapp: string;
+    gender: 'male' | 'female';
+    rating: number; 
+    notes?: string;
+    avatarUrl?: string; 
+    cpf?: string;
+    ecad?: string;
 }
 
 export interface FinancialTransaction {
@@ -66,10 +125,13 @@ export interface Product {
 export interface CalendarEvent {
   id: string;
   title: string;
-  date: string; // YYYY-MM-DD
+  date: string; 
   description: string;
-  color: 'blue' | 'green' | 'red' | 'yellow';
-  source: 'HopeOS' | 'Google';
+  color: 'blue' | 'green' | 'red' | 'yellow' | 'purple';
+  source: 'HopeOS' | 'Google' | 'Lead';
+  completed?: boolean;
+  archived?: boolean;
+  order?: number;
 }
 
 export enum CopyCategory {
@@ -93,7 +155,7 @@ export interface Event {
   id: string;
   name: string;
   description: string;
-  date: string; // YYYY-MM-DD
+  date: string; 
 }
 
 export enum EventInterestStatus {
@@ -128,9 +190,10 @@ export interface Recording {
     id: string;
     clientId: string;
     productId: string;
-    data: string; // YYYY-MM-DD
-    horaInicio: string; // HH:mm
-    horaFim: string; // HH:mm
+    data: string; 
+    deliveryDate?: string; 
+    horaInicio: string; 
+    horaFim: string; 
     horasEstimadas: number;
     valorUnitario: number;
     quantidade: number;
@@ -140,9 +203,8 @@ export interface Recording {
     status: RecordingStatus;
     createdAt: string;
     updatedAt: string;
+    googleEventId?: string;
 }
-
-// --- FINANCIAL MODULE TYPES ---
 
 export enum StatusPagamento {
     AReceber = 'A Receber',
@@ -153,14 +215,14 @@ export enum StatusPagamento {
 
 export interface LancamentoFinanceiro {
     id: string;
-    gravacaoId: string; // Link to the original recording
-    eventId?: string; // Link to an event (Optional)
+    gravacaoId: string; 
+    eventId?: string; 
     produtoId: string;
     clienteId: string;
     valorPrevisto: number;
     valorRecebido: number;
     statusPagamento: StatusPagamento;
-    dataPrevista: string; // Copied from recording
+    dataPrevista: string; 
     datasPagamentos?: { id: string; data: string; valor: number; tipo: string }[];
     formaPagamento?: string;
     observacoes?: string;
@@ -172,7 +234,7 @@ export interface SaidaFinanceira {
     id: string;
     descricao: string;
     valor: number;
-    data: string; // YYYY-MM-DD
+    data: string; 
     categoria: string;
     observacoes?: string;
     createdAt: string;
@@ -181,13 +243,11 @@ export interface SaidaFinanceira {
 
 export interface ExpensePreset {
     id: string;
-    name: string; // Display name for button (e.g. "Bruno")
-    description: string; // Default description field value
+    name: string; 
+    description: string; 
     category: string;
     amount: number;
 }
-
-// --- CAMPAIGNS MODULE TYPES ---
 
 export enum CampaignStatus {
     Ativa = 'Ativa',
@@ -217,7 +277,7 @@ export interface Campaign {
     status: CampaignStatus;
     startDate: string;
     endDate?: string;
-    productId?: string; // Related product (optional)
+    productId?: string; 
     budget?: number;
     spent?: number;
     results?: {
@@ -232,16 +292,39 @@ export interface Campaign {
         hashtags?: string;
     };
     visuals?: {
-        imageUrl?: string; // URL or Placeholder
+        imageUrl?: string; 
         description?: string;
     };
     audience?: {
         primary?: string;
         interests?: string;
     };
-    rating?: number; // 1 to 5 stars
-    notes?: string; // HTML/Rich Text content
+    rating?: number; 
+    notes?: string; 
     checklist?: CampaignChecklistItem[];
     createdAt: string;
     updatedAt: string;
+}
+
+export interface AppState {
+    clients: Client[];
+    financials: FinancialTransaction[];
+    products: Product[];
+    recordings: Recording[];
+    projects: Project[];
+    projectTracks: ProjectTrack[];
+    copywriting: Copywriting[];
+    events: Event[];
+    eventInterests: EventInterest[];
+    calendarEvents: CalendarEvent[];
+    lancamentos: LancamentoFinanceiro[];
+    saidas: SaidaFinanceira[];
+    campaigns: Campaign[];
+    expensePresets: ExpensePreset[];
+    musicians: Musician[];
+    isCloudSyncEnabled: boolean;
+    whatsappSendMethod?: 'browser' | 'extension' | 'api';
+    whatsappApiUrl?: string;
+    whatsappApiKey?: string;
+    googleTokens?: any;
 }

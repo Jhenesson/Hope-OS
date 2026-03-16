@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Event, EventInterest, EventInterestStatus, Client, StatusPagamento } from '../types';
 import { Modal } from '../components/Modal';
 import { AbstractAvatar } from '../components/AbstractAvatar';
@@ -12,6 +12,10 @@ const interestStatusColors: { [key in EventInterestStatus]: string } = {
     [EventInterestStatus.Confirmado]: 'bg-green-100 text-green-800',
     [EventInterestStatus.Compareceu]: 'bg-blue-100 text-blue-800',
 };
+
+const ChevronDownIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+);
 
 const EditIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
     <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -36,11 +40,8 @@ const EventPaymentModal: React.FC<EventPaymentModalProps> = ({ isOpen, onClose, 
     const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0]);
     const [paymentOption, setPaymentOption] = useState<'25' | '50' | '100' | 'custom'>('25');
 
-    // Helper to parse price string like "R$ 1.500,00" or "R$ 350" to number
     const parsePrice = (priceString: string): number => {
         if (!priceString) return 0;
-        // Remove non-numeric characters except comma and dot, then normalize
-        // Assuming format is either 1.000,00 (PT-BR) or simple number
         const cleaned = priceString.replace(/[^\d,.-]/g, '').replace('.', '').replace(',', '.');
         const parsed = parseFloat(cleaned);
         return isNaN(parsed) ? 0 : parsed;
@@ -50,10 +51,8 @@ const EventPaymentModal: React.FC<EventPaymentModalProps> = ({ isOpen, onClose, 
         return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
     };
 
-    // Auto-detect product and price based on event name
     useEffect(() => {
         if (event && products.length > 0) {
-            // Find product with matching name
             const product = products.find(p => 
                 p.name.toLowerCase().includes(event.name.toLowerCase()) || 
                 event.name.toLowerCase().includes(p.name.toLowerCase())
@@ -69,7 +68,6 @@ const EventPaymentModal: React.FC<EventPaymentModalProps> = ({ isOpen, onClose, 
         }
     }, [event, products]);
 
-    // Update amountPaid when total changes or option changes
     useEffect(() => {
         if (amountTotal > 0 && paymentOption !== 'custom') {
             if (paymentOption === '25') setAmountPaid(amountTotal * 0.25);
@@ -83,7 +81,6 @@ const EventPaymentModal: React.FC<EventPaymentModalProps> = ({ isOpen, onClose, 
         if (amountTotal <= 0) return;
 
         let status = StatusPagamento.AReceber;
-        // Using a small epsilon for float comparison or simply >=
         if (amountPaid >= amountTotal - 0.01) status = StatusPagamento.Pago;
         else if (amountPaid > 0) status = StatusPagamento.Parcial;
 
@@ -95,9 +92,9 @@ const EventPaymentModal: React.FC<EventPaymentModalProps> = ({ isOpen, onClose, 
         }] : [];
 
         addLancamento({
-            gravacaoId: `manual-evt-${Date.now()}`, // Events don't necessarily have a 'recording', so we use a manual ID
-            eventId: event.id, // CRITICAL: Link to event
-            produtoId: matchedProductId || 'prod-other', // Fallback or matched product
+            gravacaoId: `manual-evt-${Date.now()}`,
+            eventId: event.id,
+            produtoId: matchedProductId || 'prod-other',
             clienteId: client.id,
             valorPrevisto: amountTotal,
             valorRecebido: amountPaid,
@@ -330,7 +327,6 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({ isOpen, onClose, 
     return (
         <Modal isOpen={isOpen} onClose={onClose} title="Dashboard do Evento" headerClassName="bg-gray-50">
              <div className="space-y-6">
-                {/* Header Info */}
                 <div className="flex justify-between items-start">
                     <div className="flex-1">
                         <h2 className="text-2xl font-bold text-primary-text">{localEvent.name}</h2>
@@ -342,7 +338,6 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({ isOpen, onClose, 
                     <button onClick={() => onEditEvent(localEvent)} className="text-apple-blue text-sm font-medium hover:underline">Editar Dados</button>
                 </div>
 
-                {/* Editable Description */}
                 <div className="bg-white border border-border-color rounded-xl p-4 shadow-sm">
                     <div className="flex justify-between items-center mb-2">
                         <h4 className="text-xs font-bold text-secondary-text uppercase tracking-wide">Anotações / Configurações</h4>
@@ -364,7 +359,6 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({ isOpen, onClose, 
                     )}
                 </div>
 
-                {/* Participants List */}
                 <div>
                     <h3 className="text-lg font-bold text-primary-text mb-4">Lista de Participantes ({interests.length})</h3>
                     <div className="bg-gray-50 rounded-xl border border-border-color overflow-hidden max-h-80 overflow-y-auto">
@@ -509,17 +503,26 @@ const EventsPageContent: React.FC = () => {
 
     const [isAddInterestModalOpen, setIsAddInterestModalOpen] = useState(false);
     const [newInterest, setNewInterest] = useState<Omit<EventInterest, 'id'>>({
-        clientId: clients[0]?.id || '',
+        clientId: '',
         eventId: events[0]?.id || '',
         status: EventInterestStatus.Interessado,
         notes: '',
     });
 
+    // Searchable Dropdown State
+    const [clientSearchTerm, setClientSearchTerm] = useState('');
+    const [isClientDropdownOpen, setIsClientDropdownOpen] = useState(false);
+    const dropdownRef = useRef<HTMLDivElement>(null);
+
+    const filteredClients = useMemo(() => {
+        if (!clientSearchTerm) return clients;
+        return clients.filter(c => c.name.toLowerCase().includes(clientSearchTerm.toLowerCase()));
+    }, [clients, clientSearchTerm]);
+
     const [isManageModalOpen, setIsManageModalOpen] = useState(false);
     const [isEventFormModalOpen, setIsEventFormModalOpen] = useState(false);
     const [currentEvent, setCurrentEvent] = useState<Partial<Event> | null>(null);
     
-    // State for Details Modal
     const [selectedEventForDetails, setSelectedEventForDetails] = useState<Event | null>(null);
 
     const clientsById = useMemo(() => {
@@ -529,26 +532,29 @@ const EventsPageContent: React.FC = () => {
         }, {} as Record<string, Client>);
     }, [clients]);
 
-    // Ensure default selection logic runs when modal opens, preventing "empty" validation error if user doesn't change dropdowns
     useEffect(() => {
         if (isAddInterestModalOpen) {
             setNewInterest(prev => {
-                 // Check if current selected IDs are valid
-                 const isClientValid = prev.clientId && clients.some(c => c.id === prev.clientId);
                  const isEventValid = prev.eventId && events.some(e => e.id === prev.eventId);
-
-                 // If valid, keep them. If not, default to first item.
-                 const nextClientId = isClientValid ? prev.clientId : (clients[0]?.id || '');
                  const nextEventId = isEventValid ? prev.eventId : (events[0]?.id || '');
-                 
-                 // Only update if changed to avoid infinite loops
-                 if (nextClientId !== prev.clientId || nextEventId !== prev.eventId) {
-                     return { ...prev, clientId: nextClientId, eventId: nextEventId };
+                 if (nextEventId !== prev.eventId) {
+                     return { ...prev, eventId: nextEventId };
                  }
                  return prev;
             });
         }
-    }, [isAddInterestModalOpen, clients, events]);
+    }, [isAddInterestModalOpen, events]);
+
+    // Handle click outside to close dropdown
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setIsClientDropdownOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
 
     const handleAddInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -567,11 +573,12 @@ const EventsPageContent: React.FC = () => {
         setInterests(prev => [interestToAdd, ...prev]);
         setIsAddInterestModalOpen(false);
         setNewInterest({
-            clientId: clients[0]?.id || '',
+            clientId: '',
             eventId: events[0]?.id || '',
             status: EventInterestStatus.Interessado,
             notes: '',
         });
+        setClientSearchTerm('');
     };
     
     const handleOpenEventForm = (event: Event | null) => {
@@ -659,7 +666,7 @@ const EventsPageContent: React.FC = () => {
                                     Clientes Interessados ({eventInterests.length})
                                 </h4>
                                 <div className="space-y-2 w-full">
-                                    {eventInterests.slice(0, 3).map(interest => { // Show only top 3
+                                    {eventInterests.slice(0, 3).map(interest => {
                                         const client = clientsById[interest.clientId];
                                         if (!client) return null;
                                         return (
@@ -687,7 +694,6 @@ const EventsPageContent: React.FC = () => {
                 })}
             </div>
 
-            {/* Event Dashboard / Details Modal */}
             {selectedEventForDetails && (
                 <EventDetailsModal 
                     isOpen={!!selectedEventForDetails}
@@ -707,12 +713,61 @@ const EventsPageContent: React.FC = () => {
                             {events.map(event => <option key={event.id} value={event.id}>{event.name} ({new Date(event.date + 'T12:00:00').toLocaleDateString('pt-BR')})</option>)}
                         </select>
                     </div>
-                     <div>
-                        <label htmlFor="clientId" className="block text-sm font-medium text-secondary-text mb-1">Cliente</label>
-                        <select name="clientId" value={newInterest.clientId} onChange={handleAddInputChange} className="w-full px-3 py-2 border border-border-color rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-apple-blue transition-shadow" required>
-                            {clients.map(client => <option key={client.id} value={client.id}>{client.name}</option>)}
-                        </select>
+                    
+                    {/* Replaced standard select with searchable combobox */}
+                    <div className="relative" ref={dropdownRef}>
+                        <label htmlFor="clientSearch" className="block text-sm font-medium text-secondary-text mb-1">Cliente</label>
+                        <div className="relative">
+                            <input
+                                id="clientSearch"
+                                type="text"
+                                className="w-full px-3 py-2 border border-border-color rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-apple-blue pr-10"
+                                placeholder="Busque o cliente pelo nome..."
+                                value={clientSearchTerm}
+                                onChange={(e) => {
+                                    setClientSearchTerm(e.target.value);
+                                    if (newInterest.clientId && e.target.value !== clients.find(c => c.id === newInterest.clientId)?.name) {
+                                        setNewInterest(prev => ({ ...prev, clientId: '' }));
+                                    }
+                                    setIsClientDropdownOpen(true);
+                                }}
+                                onFocus={() => setIsClientDropdownOpen(true)}
+                                autoComplete="off"
+                                required={!newInterest.clientId}
+                            />
+                            <div 
+                                className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer text-gray-400"
+                                onClick={() => setIsClientDropdownOpen(!isClientDropdownOpen)}
+                            >
+                                <ChevronDownIcon />
+                            </div>
+                        </div>
+                        
+                        {isClientDropdownOpen && (
+                            <div className="absolute z-50 w-full mt-1 bg-white border border-border-color rounded-lg shadow-lg max-h-60 overflow-y-auto animate-fadeIn">
+                                {filteredClients.length > 0 ? (
+                                    filteredClients.map(c => (
+                                        <div
+                                            key={c.id}
+                                            className="px-4 py-2 hover:bg-gray-50 cursor-pointer text-sm text-primary-text border-b border-gray-50 last:border-0 flex justify-between items-center"
+                                            onMouseDown={(e) => {
+                                                e.preventDefault();
+                                                setNewInterest(prev => ({ ...prev, clientId: c.id }));
+                                                setClientSearchTerm(c.name);
+                                                setIsClientDropdownOpen(false);
+                                            }}
+                                        >
+                                            <span>{c.name}</span>
+                                            {c.id === newInterest.clientId && <span className="text-apple-blue text-xs font-bold">✓</span>}
+                                        </div>
+                                    ))
+                                ) : (
+                                    <div className="px-4 py-3 text-sm text-gray-400 text-center">Nenhum cliente encontrado.</div>
+                                )}
+                            </div>
+                        )}
                     </div>
+
                     <div>
                         <label htmlFor="status" className="block text-sm font-medium text-secondary-text mb-1">Status</label>
                         <select name="status" value={newInterest.status} onChange={handleAddInputChange} className="w-full px-3 py-2 border border-border-color rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-apple-blue transition-shadow" required>

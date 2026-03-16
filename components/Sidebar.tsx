@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { HomeIcon, ClientsIcon, RecordingsIcon, ProjectsIcon, FinanceIcon, CalendarIcon, SettingsIcon, EventsIcon, MegaphoneIcon } from './icons/Icons';
+import { HomeIcon, ClientsIcon, RecordingsIcon, ProjectsIcon, FinanceIcon, SettingsIcon, EventsIcon, MegaphoneIcon, MusicIcon } from './icons/Icons';
 import { Page } from '../types';
 
 interface SidebarProps {
@@ -15,8 +15,8 @@ const navItems = [
   { name: 'Gravações', icon: RecordingsIcon },
   { name: 'Projetos', icon: ProjectsIcon },
   { name: 'Eventos', icon: EventsIcon },
+  { name: 'Músicos', icon: MusicIcon },
   { name: 'Financeiro', icon: FinanceIcon },
-  { name: 'Tarefas & Calendário', icon: CalendarIcon },
   { name: 'Configurações', icon: SettingsIcon },
 ];
 

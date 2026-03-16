@@ -1,123 +1,119 @@
 
-import { Lead, LeadStatus, Client, FinancialTransaction, Product, ProductCategory, CalendarEvent, Copywriting, CopyCategory, Event, EventInterest, EventInterestStatus, Recording, RecordingStatus, PaymentStatus, LancamentoFinanceiro, StatusPagamento, SaidaFinanceira, Campaign, CampaignStatus, CampaignObjective, ExpensePreset } from './types';
+import { LeadStatus, Client, FinancialTransaction, Product, ProductCategory, CalendarEvent, Copywriting, CopyCategory, Event, EventInterest, EventInterestStatus, Recording, RecordingStatus, PaymentStatus, LancamentoFinanceiro, StatusPagamento, SaidaFinanceira, Campaign, CampaignStatus, CampaignObjective, ExpensePreset, Musician, Project, ProductionStage, ProjectTrack, TrackStatus } from './types';
 
-const todayStr = new Date().toISOString().split('T')[0];
 const now = new Date().toISOString();
-const tomorrow = new Date();
-tomorrow.setDate(tomorrow.getDate() + 1);
-const nextWeek = new Date();
-nextWeek.setDate(nextWeek.getDate() + 7);
 const year = new Date().getFullYear();
 const month = (new Date().getMonth() + 1).toString().padStart(2, '0');
 
-export const MOCK_LEADS: Lead[] = [
-  { id: 'lead-1', name: 'Alice Johnson', company: 'Creative Solutions', gender: 'female', status: LeadStatus.Novo, lastContact: '2 dias atrás', email: 'alice.j@creative.com', whatsapp: '+55 11 91111-1111', notes: 'Interessada em vídeo com banda. Ligar para confirmar orçamento.', nextFollowUp: todayStr },
-  { id: 'lead-2', name: 'Bob Williams', company: 'Tech Innovators', gender: 'male', status: LeadStatus.Novo, lastContact: '5 horas atrás', notes: 'Pediu portfolio por email.' },
-  { id: 'lead-3', name: 'Charlie Brown', company: 'Design Co.', gender: 'male', status: LeadStatus.EmConversa, lastContact: 'Ontem', whatsapp: '+55 11 93333-3333', nextFollowUp: '2024-12-25' },
-  { id: 'lead-4', name: 'Diana Miller', company: 'Marketing Gurus', gender: 'female', status: LeadStatus.Fechamento, lastContact: 'Hoje', nextFollowUp: todayStr, notes: 'Enviar contrato final.' },
-  { id: 'lead-5', name: 'Ethan Davis', company: 'Future Forward', gender: 'male', status: LeadStatus.Convertido, lastContact: '1 semana atrás' },
-  { id: 'lead-6', name: 'Fiona Garcia', company: 'Global Brands', gender: 'female', status: LeadStatus.Perdido, lastContact: '2 semanas atrás' },
-  { id: 'lead-7', name: 'George Rodriguez', company: 'Soundwave Studios', gender: 'male', status: LeadStatus.EmConversa, lastContact: '3 dias atrás', email: 'george@soundwave.com' },
-];
-
 export const MOCK_CLIENTS: Client[] = [
-    { id: 'client-1', name: 'Olivia Martinez', email: 'olivia.m@soundwave.com', whatsapp: '+55 11 98765-4321', gender: 'female', status: 'Active', lastProjectDate: '2024-07-15' },
-    { id: 'client-2', name: 'Liam Hernandez', email: 'liam.h@visionary.io', whatsapp: '+55 21 91234-5678', gender: 'male', status: 'Active', lastProjectDate: '2024-06-20' },
-    { id: 'client-3', name: 'Sophia Lopez', email: 'sophia.l@harmony.co', whatsapp: '+55 31 99999-8888', gender: 'female', status: 'Inactive', lastProjectDate: '2023-11-05' },
-    { id: 'client-4', name: 'Noah Gonzalez', email: 'noah.g@adpulse.com', whatsapp: '+55 41 98888-7777', gender: 'male', status: 'Active', lastProjectDate: '2024-07-28' },
-    { id: 'client-5', name: 'Isabella Wilson', email: 'isabella.w@brandboost.net', whatsapp: '+55 51 97777-6666', gender: 'female', status: 'Lead', lastProjectDate: 'N/A' },
-];
-
-export const MOCK_FINANCIAL_DATA: FinancialTransaction[] = [
-    { id: 'fin-1', description: 'Projeto Visionary Films', amount: 15000, type: 'income', date: '2024-07-20', category: 'Gravação' },
-    { id: 'fin-2', description: 'Assinatura Adobe CC', amount: 350, type: 'expense', date: '2024-07-05', category: 'Software' },
-    { id: 'fin-3', description: 'Aluguel do Estúdio', amount: 4500, type: 'expense', date: '2024-07-01', category: 'Estrutura' },
-    { id: 'fin-4', description: 'Campanha AdPulse', amount: 8500, type: 'income', date: '2024-07-28', category: 'Marketing' },
-    { id: 'fin-5', description: 'Equipamento de Áudio', amount: 2200, type: 'expense', date: '2024-07-12', category: 'Equipamento' },
-    { id: 'fin-6', description: 'Jingle para BrandBoost', amount: 4000, type: 'income', date: '2024-06-15', category: 'Produção' },
-    { id: 'fin-7', description: 'Manutenção de Equipamento', amount: 500, type: 'expense', date: '2024-06-18', category: 'Manutenção' },
+    { id: 'client-1', name: 'Olivia Martinez', email: 'olivia.m@soundwave.com', whatsapp: '+55 11 98765-4321', gender: 'female', status: 'Active', lastProjectDate: '2025-02-15', createdAt: '2024-05-10T10:00:00Z' },
+    { id: 'client-2', name: 'Liam Hernandez', email: 'liam.h@visionary.io', whatsapp: '+55 21 91234-5678', gender: 'male', status: 'Active', lastProjectDate: '2025-01-20', createdAt: '2024-06-12T10:00:00Z' },
+    { id: 'client-3', name: 'Sophia Lopez', email: 'sophia.l@harmony.co', whatsapp: '+55 31 99999-8888', gender: 'female', status: 'Active', lastProjectDate: '2024-11-05', createdAt: '2024-07-20T10:00:00Z' },
+    { id: 'client-4', name: 'Noah Gonzalez', email: 'noah.g@adpulse.com', whatsapp: '+55 41 98888-7777', gender: 'male', status: 'Active', lastProjectDate: '2025-03-02', createdAt: '2024-08-05T10:00:00Z' },
+    { id: 'client-5', name: 'Isabella Wilson', email: 'isabella.w@brandboost.net', whatsapp: '+55 51 97777-6666', gender: 'female', status: 'Lead', lastProjectDate: 'N/A', leadStage: LeadStatus.Novo, createdAt: now },
+    { id: 'client-6', name: 'Alice Johnson', company: 'Creative Solutions', gender: 'female', status: 'Active', lastProjectDate: '2025-02-28', whatsapp: '+55 11 91111-1111', createdAt: '2024-10-15T10:00:00Z' },
 ];
 
 export const MOCK_PRODUCTS: Product[] = [
-    { id: 'prod-1', name: 'Vídeo Acústico', price: 'R$ 350 (ou R$ 250/un acima de 2)', description: 'Gravação de vídeo em formato acústico. R$ 350 unidade ou R$ 250 cada (min 2).', category: ProductCategory.VideoAcustico, horasEstimadas: 4, createdAt: now, updatedAt: now },
-    { id: 'prod-2', name: 'Vídeo com Banda', price: 'R$ 1.500 / música', description: 'Produção de vídeo clipe com banda completa.', category: ProductCategory.VideoBanda, horasEstimadas: 8, createdAt: now, updatedAt: now },
-    { id: 'prod-3', name: 'Hope Session Colaborativa', price: 'R$ 1.500 / música', description: 'Sessão de gravação em vídeo com outros artistas.', category: ProductCategory.HopeSession, horasEstimadas: 6, createdAt: now, updatedAt: now },
-    { id: 'prod-4', name: 'Pocket Show', price: '~ R$ 5.000', description: 'Gravação de um show completo em formato intimista.', category: ProductCategory.PocketShow, horasEstimadas: 12, createdAt: now, updatedAt: now },
-    { id: 'prod-5', name: 'DrumDay', price: 'R$ 250 / música', description: 'Gravação profissional de bateria para suas músicas.', category: ProductCategory.DrumDay, horasEstimadas: 2, createdAt: now, updatedAt: now },
-    { id: 'prod-6', name: 'Produção Musical (Single)', price: 'R$ 500', description: 'Produção completa de um single, do arranjo à finalização.', category: ProductCategory.ProducaoMusical, horasEstimadas: 10, createdAt: now, updatedAt: now },
-    { id: 'prod-7', name: 'Gravação de Voz/Instrumento', price: 'R$ 150 a R$ 250 / hora', description: 'Hora de estúdio para gravação com técnico.', category: ProductCategory.Gravacao, horasEstimadas: 1, createdAt: now, updatedAt: now },
-    { id: 'prod-8', name: 'Gravação de Áudio Multipista', price: 'R$ 350 a R$ 500', description: 'Sessões de gravação com múltiplos instrumentos.', category: ProductCategory.Gravacao, horasEstimadas: 3, createdAt: now, updatedAt: now },
+    { id: 'prod-1', name: 'Vídeo Acústico', price: 'R$ 350', description: 'Gravação de vídeo em formato acústico.', category: ProductCategory.VideoAcustico, horasEstimadas: 4, createdAt: now, updatedAt: now },
+    { id: 'prod-2', name: 'Vídeo com Banda', price: 'R$ 1.500', description: 'Produção de vídeo clipe com banda completa.', category: ProductCategory.VideoBanda, horasEstimadas: 8, createdAt: now, updatedAt: now },
+    { id: 'prod-5', name: 'DrumDay', price: 'R$ 250', description: 'Gravação profissional de bateria.', category: ProductCategory.DrumDay, horasEstimadas: 2, createdAt: now, updatedAt: now },
+    { id: 'prod-6', name: 'Produção Musical', price: 'R$ 500', description: 'Produção completa de um single.', category: ProductCategory.ProducaoMusical, horasEstimadas: 10, createdAt: now, updatedAt: now },
     { id: 'prod-9', name: 'Mixagem', price: 'R$ 150', description: 'Mixagem profissional de uma faixa.', category: ProductCategory.PosProducaoAudio, horasEstimadas: 2, createdAt: now, updatedAt: now },
-    { id: 'prod-10', name: 'Masterização', price: 'R$ 100', description: 'Masterização para plataformas digitais.', category: ProductCategory.PosProducaoAudio, horasEstimadas: 1, createdAt: now, updatedAt: now },
-    { id: 'prod-11', name: 'Edição de Áudio', price: 'R$ 80 a R$ 150', description: 'Afinação, quantização e limpeza de áudios.', category: ProductCategory.PosProducaoAudio, horasEstimadas: 1.5, createdAt: now, updatedAt: now },
+];
+
+// --- LANÇAMENTOS (RECEITAS) ---
+export const MOCK_LANCAMENTOS: LancamentoFinanceiro[] = [
+    // MARÇO 2025 (Mês Atual)
+    { id: 'l-mar-1', gravacaoId: 'man-1', produtoId: 'prod-2', clienteId: 'client-1', valorPrevisto: 1500, valorRecebido: 750, statusPagamento: StatusPagamento.Parcial, dataPrevista: '2025-03-10', datasPagamentos: [{ id: 'p1', data: '2025-03-01', valor: 750, tipo: 'Entrada' }], createdAt: now, updatedAt: now },
+    { id: 'l-mar-1-extra', gravacaoId: 'man-1-extra', produtoId: 'prod-2', clienteId: 'client-1', valorPrevisto: 1500, valorRecebido: 1500, statusPagamento: StatusPagamento.Pago, dataPrevista: '2025-03-15', datasPagamentos: [{ id: 'p1-extra', data: '2025-03-15', valor: 1500, tipo: 'Integral' }], createdAt: now, updatedAt: now },
+    { id: 'l-mar-2', gravacaoId: 'man-2', produtoId: 'prod-1', clienteId: 'client-4', valorPrevisto: 350, valorRecebido: 350, statusPagamento: StatusPagamento.Pago, dataPrevista: '2025-03-02', datasPagamentos: [{ id: 'p2', data: '2025-03-02', valor: 350, tipo: 'Integral' }], createdAt: now, updatedAt: now },
+    { id: 'l-mar-3', gravacaoId: 'man-3', produtoId: 'prod-5', clienteId: 'client-6', valorPrevisto: 250, valorRecebido: 0, statusPagamento: StatusPagamento.AReceber, dataPrevista: '2025-03-25', createdAt: now, updatedAt: now },
+    
+    // FEVEREIRO 2025
+    { id: 'l-feb-1', gravacaoId: 'man-4', produtoId: 'prod-6', clienteId: 'client-2', valorPrevisto: 2000, valorRecebido: 2000, statusPagamento: StatusPagamento.Pago, dataPrevista: '2025-02-15', datasPagamentos: [{ id: 'p3', data: '2025-02-15', valor: 2000, tipo: 'Integral' }], createdAt: now, updatedAt: now },
+    { id: 'l-feb-2', gravacaoId: 'man-5', produtoId: 'prod-1', clienteId: 'client-1', valorPrevisto: 700, valorRecebido: 700, statusPagamento: StatusPagamento.Pago, dataPrevista: '2025-02-10', datasPagamentos: [{ id: 'p4', data: '2025-02-08', valor: 700, tipo: 'Antecipado' }], createdAt: now, updatedAt: now },
+    { id: 'l-feb-3', gravacaoId: 'man-6', produtoId: 'prod-9', clienteId: 'client-3', valorPrevisto: 450, valorRecebido: 450, statusPagamento: StatusPagamento.Pago, dataPrevista: '2025-02-28', datasPagamentos: [{ id: 'p5', data: '2025-02-28', valor: 450, tipo: 'Integral' }], createdAt: now, updatedAt: now },
+    
+    // JANEIRO 2025
+    { id: 'l-jan-1', gravacaoId: 'man-7', produtoId: 'prod-2', clienteId: 'client-4', valorPrevisto: 1500, valorRecebido: 1500, statusPagamento: StatusPagamento.Pago, dataPrevista: '2025-01-20', datasPagamentos: [{ id: 'p6', data: '2025-01-20', valor: 1500, tipo: 'Pix' }], createdAt: now, updatedAt: now },
+    { id: 'l-jan-2', gravacaoId: 'man-8', produtoId: 'prod-5', clienteId: 'client-2', valorPrevisto: 500, valorRecebido: 500, statusPagamento: StatusPagamento.Pago, dataPrevista: '2025-01-05', datasPagamentos: [{ id: 'p7', data: '2025-01-05', valor: 500, tipo: 'Dinheiro' }], createdAt: now, updatedAt: now },
+    
+    // DEZEMBRO 2024
+    { id: 'l-dec-1', gravacaoId: 'man-9', produtoId: 'prod-6', clienteId: 'client-3', valorPrevisto: 3000, valorRecebido: 3000, statusPagamento: StatusPagamento.Pago, dataPrevista: '2024-12-12', datasPagamentos: [{ id: 'p8', data: '2024-12-10', valor: 3000, tipo: 'Boleto' }], createdAt: now, updatedAt: now },
+    { id: 'l-dec-2', gravacaoId: 'man-10', produtoId: 'prod-1', clienteId: 'client-1', valorPrevisto: 350, valorRecebido: 350, statusPagamento: StatusPagamento.Pago, dataPrevista: '2024-12-20', datasPagamentos: [{ id: 'p9', data: '2024-12-20', valor: 350, tipo: 'Pix' }], createdAt: now, updatedAt: now },
+    
+    // NOVEMBRO 2024
+    { id: 'l-nov-1', gravacaoId: 'man-11', produtoId: 'prod-2', clienteId: 'client-6', valorPrevisto: 1500, valorRecebido: 1500, statusPagamento: StatusPagamento.Pago, dataPrevista: '2024-11-05', datasPagamentos: [{ id: 'p10', data: '2024-11-05', valor: 1500, tipo: 'Integral' }], createdAt: now, updatedAt: now },
+    { id: 'l-nov-2', gravacaoId: 'man-12', produtoId: 'prod-9', clienteId: 'client-2', valorPrevisto: 300, valorRecebido: 300, statusPagamento: StatusPagamento.Pago, dataPrevista: '2024-11-25', datasPagamentos: [{ id: 'p11', data: '2024-11-25', valor: 300, tipo: 'Integral' }], createdAt: now, updatedAt: now },
+];
+
+// --- SAÍDAS (DESPESAS) ---
+export const MOCK_SAIDAS: SaidaFinanceira[] = [
+    // MARÇO 2025
+    { id: 's-mar-1', descricao: 'Aluguel Estúdio', valor: 1200, data: '2025-03-05', categoria: 'Infraestrutura', createdAt: now, updatedAt: now },
+    { id: 's-mar-2', descricao: 'Energia Elétrica', valor: 340, data: '2025-03-10', categoria: 'Contas Fixas', createdAt: now, updatedAt: now },
+    { id: 's-mar-3', descricao: 'Marketing Instagram', valor: 200, data: '2025-03-12', categoria: 'Marketing', createdAt: now, updatedAt: now },
+    
+    // FEVEREIRO 2025
+    { id: 's-feb-1', descricao: 'Aluguel Estúdio', valor: 1200, data: '2025-02-05', categoria: 'Infraestrutura', createdAt: now, updatedAt: now },
+    { id: 's-feb-2', descricao: 'Cachê Músico: Bruno', valor: 250, data: '2025-02-15', categoria: 'Mão de Obra', createdAt: now, updatedAt: now },
+    { id: 's-feb-3', descricao: 'Manutenção Ar Condicionado', valor: 180, data: '2025-02-20', categoria: 'Manutenção', createdAt: now, updatedAt: now },
+    
+    // JANEIRO 2025
+    { id: 's-jan-1', descricao: 'Aluguel Estúdio', valor: 1200, data: '2025-01-05', categoria: 'Infraestrutura', createdAt: now, updatedAt: now },
+    { id: 's-jan-2', descricao: 'Novo Microfone SM7B', valor: 2800, data: '2025-01-15', categoria: 'Equipamentos', createdAt: now, updatedAt: now },
+    
+    // DEZEMBRO 2024
+    { id: 's-dec-1', descricao: 'Aluguel Estúdio', valor: 1200, data: '2024-12-05', categoria: 'Infraestrutura', createdAt: now, updatedAt: now },
+    { id: 's-dec-2', descricao: 'Confraternização Fim de Ano', valor: 650, data: '2024-12-20', categoria: 'Outros', createdAt: now, updatedAt: now },
+
+    // NOVEMBRO 2024
+    { id: 's-nov-1', descricao: 'Aluguel Estúdio', valor: 1200, data: '2024-11-05', categoria: 'Infraestrutura', createdAt: now, updatedAt: now },
+    { id: 's-nov-2', descricao: 'Assinatura Software', valor: 90, data: '2024-11-10', categoria: 'Softwares', createdAt: now, updatedAt: now },
+];
+
+export const MOCK_PROJECTS: Project[] = [
+    { id: 'proj-1', name: 'Produção Álbum: Renascer', clientId: 'client-1', stage: ProductionStage.Mixagem, progress: 45, folderLink: 'https://drive.google.com/drive/folders/123', deadline: '2025-04-20', musiciansIds: ['mus-1'], notes: 'Produção completa com 3 faixas.', isComplex: true, createdAt: now, updatedAt: now },
+    { id: 'proj-2', name: 'Single "Ecos do Deserto"', clientId: 'client-2', stage: ProductionStage.Gravacao, progress: 30, deadline: '2025-03-15', musiciansIds: [], isComplex: false, createdAt: now, updatedAt: now }
+];
+
+export const MOCK_PROJECT_TRACKS: ProjectTrack[] = [
+    { id: 'track-1', projectId: 'proj-1', title: 'Corrida do Ouro', statusPreProd: TrackStatus.Concluido, statusRec: TrackStatus.Concluido, statusEdit: TrackStatus.Concluido, statusMix: TrackStatus.Concluido, statusMaster: TrackStatus.Concluido, order: 1 },
+    { id: 'track-2', projectId: 'proj-1', title: 'Mar de Ilusões', statusPreProd: TrackStatus.Concluido, statusRec: TrackStatus.Concluido, statusEdit: TrackStatus.AFazer, statusMix: TrackStatus.AFazer, statusMaster: TrackStatus.AFazer, notes: 'Refazer baixo', order: 2 },
 ];
 
 export const MOCK_RECORDINGS: Recording[] = [
-    { id: 'rec-1', clientId: 'client-1', productId: 'prod-1', data: '2024-08-22', horaInicio: '14:00', horaFim: '18:00', horasEstimadas: 4, valorUnitario: 500, quantidade: 1, valorTotal: 500, statusPagamentoInicial: PaymentStatus.Entrada50, notes: 'Gravação para o single "Amanhecer". Levar violão de nylon.', status: RecordingStatus.Agendada, createdAt: '2024-07-20', updatedAt: '2024-07-20' },
-    { id: 'rec-2', clientId: 'client-2', productId: 'prod-5', data: '2024-08-25', horaInicio: '10:00', horaFim: '18:00', horasEstimadas: 8, valorUnitario: 250, quantidade: 3, valorTotal: 750, statusPagamentoInicial: PaymentStatus.PagoIntegral, notes: 'Sessão de DrumDay para 3 faixas do EP. Estimativa de 2h por faixa, mais setup.', status: RecordingStatus.Agendada, createdAt: '2024-07-18', updatedAt: '2024-07-18' },
-    { id: 'rec-3', clientId: 'client-4', productId: 'prod-2', data: '2024-07-25', horaInicio: '09:00', horaFim: '17:00', horasEstimadas: 8, valorUnitario: 1500, quantidade: 1, valorTotal: 1500, statusPagamentoInicial: PaymentStatus.PagoIntegral, notes: 'Clipe da música "Noite em neon". Finalizado com sucesso.', status: RecordingStatus.Concluída, createdAt: '2024-06-15', updatedAt: '2024-07-25' },
-    { id: 'rec-4', clientId: 'client-3', productId: 'prod-7', data: '2024-08-15', horaInicio: '11:00', horaFim: '12:00', horasEstimadas: 1, valorUnitario: 150, quantidade: 1, valorTotal: 150, statusPagamentoInicial: PaymentStatus.Pendente, notes: 'Cliente cancelou por motivos de saúde.', status: RecordingStatus.Cancelada, createdAt: '2024-07-01', updatedAt: '2024-07-01' },
-    { id: 'rec-5', clientId: 'client-5', productId: 'prod-6', data: '2024-08-28', horaInicio: '13:00', horaFim: '18:00', horasEstimadas: 5, valorUnitario: 500, quantidade: 1, valorTotal: 500, statusPagamentoInicial: PaymentStatus.Pendente, notes: 'Pré-produção e arranjos. Pode levar menos que o padrão.', status: RecordingStatus.Agendada, createdAt: '2024-07-22', updatedAt: '2024-07-22' },
-    { id: 'rec-6', clientId: 'client-1', productId: 'prod-9', data: nextWeek.toISOString().split('T')[0], horaInicio: '15:00', horaFim: '17:00', horasEstimadas: 2, valorUnitario: 150, quantidade: 1, valorTotal: 150, statusPagamentoInicial: PaymentStatus.Entrada50, notes: 'Mixagem da faixa "Amanhecer".', status: RecordingStatus.Agendada, createdAt: '2024-07-25', updatedAt: '2024-07-25' },
-    { id: 'rec-7', clientId: 'client-2', productId: 'prod-10', data: tomorrow.toISOString().split('T')[0], horaInicio: '10:00', horaFim: '13:00', horasEstimadas: 3, valorUnitario: 100, quantidade: 3, valorTotal: 300, statusPagamentoInicial: PaymentStatus.Pendente, notes: 'Masterização do EP (3 faixas).', status: RecordingStatus.Agendada, createdAt: '2024-07-28', updatedAt: '2024-07-28' },
+    // Corrected property name from 'hoursEstimadas' to 'horasEstimadas' to match the Recording interface
+    { id: 'rec-3', clientId: 'client-4', productId: 'prod-2', data: '2025-03-25', horaInicio: '09:00', horaFim: '17:00', horasEstimadas: 8, valorUnitario: 1500, quantidade: 1, valorTotal: 1500, statusPagamentoInicial: PaymentStatus.PagoIntegral, notes: 'Clipe da música "Noite em neon".', status: RecordingStatus.Agendada, createdAt: now, updatedAt: now },
 ];
 
 export const MOCK_CALENDAR_EVENTS: CalendarEvent[] = [
   { id: 'cal-1', title: 'Gravação - Visionary Films', date: `${year}-${month}-10`, description: 'Gravação do clipe da banda "The Vistas"', color: 'blue', source: 'HopeOS' },
-  { id: 'cal-2', title: 'Reunião de Pré-produção', date: `${year}-${month}-15`, description: 'Alinhamento com a equipe da AdPulse Media', color: 'yellow', source: 'Google' },
-  { id: 'cal-3', title: 'Entrega - Projeto Soundwave', date: `${year}-${month}-22`, description: 'Entrega final da mixagem e masterização.', color: 'green', source: 'HopeOS' },
-  { id: 'cal-4', title: 'Call com Novo Lead', date: `${year}-${month}-22`, description: 'Primeira conversa com a "Global Brands"', color: 'yellow', source: 'Google' },
-  { id: 'cal-5', title: 'Pagamento Aluguel', date: `${year}-${month}-05`, description: 'Vencimento do aluguel do estúdio.', color: 'red', source: 'HopeOS' }
 ];
 
 export const MOCK_COPYWRITING: Copywriting[] = [
-    { id: 'copy-1', title: 'Legenda Campanha Inverno', content: 'O frio chegou, mas o som não para! ❄️🎸\n\nVenha gravar sua Hope Session com condições especiais neste inverno.', category: CopyCategory.Instagram, createdAt: now, updatedAt: now },
-    { id: 'copy-2', title: 'Mensagem WhatsApp Lead', content: 'Olá! Tudo bem? Vi seu interesse em nossos serviços de produção. Gostaria de agendar uma visita?', category: CopyCategory.WhatsApp, createdAt: now, updatedAt: now },
+    { id: 'copy-1', title: 'Legenda Inverno', content: 'O frio chegou, mas o som não para!', category: CopyCategory.Instagram, createdAt: now, updatedAt: now },
 ];
 
 export const MOCK_EVENTS: Event[] = [
-    { id: 'evt-1', name: 'Workshop de Mixagem', description: 'Técnicas avançadas de mixagem in-the-box.', date: `${year}-${month}-20` },
+    { id: 'evt-1', name: 'Workshop de Mixagem', description: 'Técnicas avançadas de mixagem.', date: `${year}-${month}-20` },
 ];
 
 export const MOCK_EVENT_INTERESTS: EventInterest[] = [
     { id: 'int-1', clientId: 'client-1', eventId: 'evt-1', status: EventInterestStatus.Confirmado, notes: 'Pago via Pix' },
 ];
 
-export const MOCK_LANCAMENTOS: LancamentoFinanceiro[] = [
-    { 
-        id: 'lanc-1', 
-        gravacaoId: 'rec-3', 
-        produtoId: 'prod-2', 
-        clienteId: 'client-4', 
-        valorPrevisto: 1500, 
-        valorRecebido: 1500, 
-        statusPagamento: StatusPagamento.Pago, 
-        dataPrevista: '2024-07-25',
-        createdAt: now,
-        updatedAt: now
-    },
-];
-
-export const MOCK_SAIDAS: SaidaFinanceira[] = [
-    { id: 'saida-1', descricao: 'Energia Elétrica', valor: 450, data: `${year}-${month}-10`, categoria: 'Contas Fixas', createdAt: now, updatedAt: now },
-];
+export const MOCK_FINANCIAL_DATA: FinancialTransaction[] = [];
 
 export const MOCK_EXPENSE_PRESETS: ExpensePreset[] = [
-    { id: 'preset-1', name: 'Bruno', description: 'Bruno', category: 'Assistente Técnico Audio Visual', amount: 50 }
+    { id: 'preset-1', name: 'Bruno', description: 'Bruno', category: 'Assistente Técnico', amount: 50 }
 ];
 
 export const MOCK_CAMPAIGNS: Campaign[] = [
-    { 
-        id: 'camp-1', 
-        name: 'DrumDay 2024', 
-        objective: CampaignObjective.Vendas, 
-        status: CampaignStatus.Ativa, 
-        startDate: `${year}-${month}-01`,
-        endDate: `${year}-${month}-30`,
-        budget: 1000,
-        spent: 450,
-        results: { leads: 12, sales: 2 },
-        createdAt: now,
-        updatedAt: now
-    }
+    { id: 'camp-1', name: 'DrumDay 2024', objective: CampaignObjective.Vendas, status: CampaignStatus.Ativa, startDate: `${year}-${month}-01`, endDate: `${year}-${month}-30`, budget: 1000, spent: 450, results: { leads: 12, sales: 2 }, createdAt: now, updatedAt: now }
+];
+
+export const MOCK_MUSICIANS: Musician[] = [
+    { id: 'mus-1', name: 'Carlos Guitarra', instruments: ['Guitarra'], cacheValue: 200, pixKey: 'carlos@pix.com', whatsapp: '+55 11 99999-9999', gender: 'male', rating: 5 },
 ];
