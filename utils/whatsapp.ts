@@ -14,6 +14,17 @@ export const sendWhatsAppMessage = async (
         cleanNumber = '55' + cleanNumber;
     }
     
+    if (!cleanNumber) {
+        alert('Número de telefone inválido.');
+        return false;
+    }
+
+    // Se o método for API mas não houver mensagem nem imagem, 
+    // caímos no fallback do navegador para apenas abrir a conversa.
+    if (method === 'api' && !message && !image) {
+        method = 'browser';
+    }
+    
     if (method === 'api') {
         try {
             // Get current state from localStorage to get API config
@@ -30,7 +41,8 @@ export const sendWhatsAppMessage = async (
                     text: message,
                     image: image,
                     apiUrl: appState.whatsappApiUrl,
-                    apiKey: appState.whatsappApiKey
+                    apiKey: appState.whatsappApiKey,
+                    session: appState.whatsappSessionName
                 })
             });
             

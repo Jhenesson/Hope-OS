@@ -50,8 +50,9 @@ const initialAppState: AppState = {
     musicians: MOCK_MUSICIANS,
     isCloudSyncEnabled: false,
     whatsappSendMethod: 'browser',
-    whatsappApiUrl: 'https://diagnostic-apps-remembered-cassette.trycloudflare.com/api',
+    whatsappApiUrl: 'https://waha.hoperiseprodutora.com/api',
     whatsappApiKey: 'hope_waha_key',
+    whatsappSessionName: 'default',
 };
 
 const STORAGE_KEY = 'hope-os-storage-v1';
@@ -142,6 +143,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                     hasChanges = true;
                 }
             });
+
+            // Migration for WhatsApp API URL: Force update if it's an old temporary URL
+            if (migratedState.whatsappApiUrl && migratedState.whatsappApiUrl.includes('trycloudflare.com')) {
+                migratedState.whatsappApiUrl = initialAppState.whatsappApiUrl;
+                hasChanges = true;
+            }
 
             return hasChanges ? migratedState : prev;
         });

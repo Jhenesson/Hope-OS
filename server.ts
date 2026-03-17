@@ -316,31 +316,35 @@ app.delete("/api/calendar/sync/:eventId", async (req, res) => {
 });
 
 app.post("/api/whatsapp/send", async (req, res) => {
-  const { chatId, text, image, apiUrl, apiKey } = req.body;
+  const { chatId, text, image, apiUrl, apiKey, session } = req.body;
   console.log(`[WhatsApp API] Request received for chatId: ${chatId}`);
   
-  const baseApiUrl = apiUrl || 'https://diagnostic-apps-remembered-cassette.trycloudflare.com/api';
+  const baseApiUrl = apiUrl || process.env.WHATSAPP_API_URL || 'https://waha.hoperiseprodutora.com/api';
   const apiToken = apiKey || process.env.WHATSAPP_API_KEY || 'hope_waha_key';
+  const sessionName = session || 'default';
 
-  if (!chatId || !text) {
-    console.error("[WhatsApp API] Missing chatId or text");
-    return res.status(400).json({ error: "Missing chatId or text" });
+  if (!chatId || (!text && !image)) {
+    console.error("[WhatsApp API] Missing chatId, text or image");
+    return res.status(400).json({ error: "Missing chatId, text or image" });
   }
 
   try {
     const isImage = !!image;
     const endpoint = isImage ? 'sendImage' : 'sendText';
-    console.log(`[WhatsApp API] Using endpoint: ${endpoint} on ${baseApiUrl}`);
+    
+    // Normalize URL: remove trailing slashes
+    const normalizedBaseUrl = baseApiUrl.replace(/\/+$/, "");
+    const targetUrl = `${normalizedBaseUrl}/${endpoint}`;
+    
+    console.log(`[WhatsApp API] Attempting to fetch: ${targetUrl} (Session: ${sessionName})`);
     
     const payload: any = {
-      session: 'default',
+      session: sessionName,
       chatId,
     };
 
     if (isImage) {
-      console.log("[WhatsApp API] Preparing image payload...");
       const base64Data = image.split(',')[1] || image;
-      console.log(`[WhatsApp API] Image size: ${(base64Data.length / 1024 / 1024).toFixed(2)} MB`);
       payload.file = {
         data: base64Data,
         mimetype: 'image/jpeg',
@@ -351,22 +355,28 @@ app.post("/api/whatsapp/send", async (req, res) => {
       payload.text = text;
     }
 
-    const targetUrl = `${baseApiUrl}/${endpoint}`;
-    console.log(`[WhatsApp API] Fetching: ${targetUrl}`);
-    console.log(`[WhatsApp API] Payload:`, JSON.stringify({ ...payload, file: payload.file ? '[BASE64_DATA]' : undefined }));
-
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+    const timeoutId = setTimeout(() => controller.abort(), 45000); // Increased to 45s
 
-    let response = await fetch(targetUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Api-Key': apiToken
-      },
-      body: JSON.stringify(payload),
-      signal: controller.signal
-    });
+    let response;
+    try {
+      response = await fetch(targetUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Api-Key': apiToken
+        },
+        body: JSON.stringify(payload),
+        signal: controller.signal
+      });
+    } catch (fetchError: any) {
+      console.error(`[WhatsApp API] Fetch failed to ${targetUrl}:`, fetchError);
+      if (fetchError.name === 'AbortError') {
+        return res.status(504).json({ error: "WhatsApp API timeout (45s). The server might be slow or unreachable." });
+      }
+      throw fetchError; // Re-throw to be caught by outer catch
+    }
+    
     clearTimeout(timeoutId);
 
     console.log(`[WhatsApp API] Response status: ${response.status}`);
@@ -379,7 +389,7 @@ app.post("/api/whatsapp/send", async (req, res) => {
       const errorMsg = JSON.stringify(data);
       const isPlusVersionError = errorMsg.includes("Plus version");
       
-      if (isPlusVersionError || isImage) {
+      if ((isPlusVersionError || isImage) && text && text.trim()) {
         console.log(`[WhatsApp API] Info: Media restricted by WAHA version/engine. Attempting text-only fallback...`);
         
         const textUrl = `${baseApiUrl}/sendText`;
@@ -391,7 +401,7 @@ app.post("/api/whatsapp/send", async (req, res) => {
               'X-Api-Key': apiToken
             },
             body: JSON.stringify({
-              session: 'default',
+              session: sessionName,
               chatId,
               text: text
             })
@@ -412,6 +422,12 @@ app.post("/api/whatsapp/send", async (req, res) => {
         } catch (fallbackError: any) {
           console.error("[WhatsApp API] Error during fallback attempt:", fallbackError);
         }
+      } else if (isImage && (!text || !text.trim())) {
+        // If it was only an image and it failed due to version, we can't fallback to text
+        return res.status(422).json({
+          ...data,
+          _warning: "A imagem não pôde ser enviada. Motivo: Sua versão do WAHA (engine NOWEB) exige a versão 'Plus' para mídias. \n\nPara enviar imagens na versão gratuita: Mude a engine da sua sessão para 'WEBJS' no painel do WAHA."
+        });
       }
     }
 
@@ -424,7 +440,8 @@ app.post("/api/whatsapp/send", async (req, res) => {
     res.json(data);
   } catch (error: any) {
     console.error("[WhatsApp API] Error sending WhatsApp message via API:", error);
-    res.status(500).json({ error: "Failed to send WhatsApp message: " + error.message });
+    const detail = error.cause ? ` (Cause: ${error.cause.message || error.cause})` : "";
+    res.status(500).json({ error: "Failed to send WhatsApp message: " + error.message + detail });
   }
 });
 

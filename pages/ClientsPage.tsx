@@ -41,16 +41,20 @@ interface WhatsAppMenuProps {
     phoneNumber: string;
     templates: { title: string; content: string }[];
     position: { x: number; y: number };
-    sendMethod: 'browser' | 'extension';
+    sendMethod: 'browser' | 'extension' | 'api';
 }
 
 const WhatsAppMenu: React.FC<WhatsAppMenuProps> = ({ isOpen, onClose, phoneNumber, templates, position, sendMethod }) => {
     const menuRef = useRef<HTMLDivElement>(null);
+    const [isCustomMessageOpen, setIsCustomMessageOpen] = useState(false);
+    const [customMessage, setCustomMessage] = useState('');
+    const [isSending, setIsSending] = useState(false);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
                 onClose();
+                setIsCustomMessageOpen(false);
             }
         };
         if (isOpen) document.addEventListener('mousedown', handleClickOutside);
@@ -60,47 +64,89 @@ const WhatsAppMenu: React.FC<WhatsAppMenuProps> = ({ isOpen, onClose, phoneNumbe
     if (!isOpen) return null;
 
     const handleSend = async (text: string) => {
+        setIsSending(true);
         await sendWhatsAppMessage(phoneNumber, text, sendMethod);
+        setIsSending(false);
         onClose();
+        setIsCustomMessageOpen(false);
+        setCustomMessage('');
     };
 
     return (
         <div 
             ref={menuRef}
-            className="fixed z-[60] w-72 bg-white/80 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/20 overflow-hidden animate-fadeIn"
+            className="fixed z-[60] w-72 bg-white/90 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/20 overflow-hidden animate-fadeIn"
             style={{ top: position.y, left: position.x }}
         >
-            <div className="bg-gray-50/50 px-4 py-3 border-b border-border-color/50">
-                <div className="flex items-center gap-2">
-                    <WhatsAppIcon className="w-4 h-4 text-green-600" />
-                    <p className="text-[10px] font-bold text-secondary-text uppercase tracking-wider">Modelos de Mensagem</p>
-                </div>
-            </div>
-            <div className="max-h-80 overflow-y-auto custom-scrollbar p-1">
-                {templates.length > 0 ? (
-                    templates.map((tpl, idx) => (
-                        <button
-                            key={idx}
-                            onClick={() => handleSend(tpl.content)}
-                            className="w-full text-left px-4 py-3 hover:bg-apple-blue/5 rounded-xl transition-all group"
+            {!isCustomMessageOpen ? (
+                <>
+                    <div className="bg-gray-50/50 px-4 py-3 border-b border-border-color/50 flex justify-between items-center">
+                        <div className="flex items-center gap-2">
+                            <WhatsAppIcon className="w-4 h-4 text-green-600" />
+                            <p className="text-[10px] font-bold text-secondary-text uppercase tracking-wider">WhatsApp</p>
+                        </div>
+                        <button 
+                            onClick={() => setIsCustomMessageOpen(true)}
+                            className="text-[10px] font-bold text-apple-blue uppercase hover:underline"
                         >
-                            <p className="text-sm font-bold text-primary-text group-hover:text-apple-blue transition-colors">{tpl.title}</p>
-                            <p className="text-xs text-secondary-text line-clamp-2 mt-1 leading-relaxed">{tpl.content}</p>
+                            Nova Mensagem
                         </button>
-                    ))
-                ) : (
-                    <div className="p-6 text-center">
-                        <WhatsAppIcon className="w-8 h-8 text-gray-200 mx-auto mb-2" />
-                        <p className="text-xs text-secondary-text mb-3">Nenhum modelo salvo.</p>
-                        <button onClick={() => handleSend('')} className="text-xs bg-apple-blue text-white px-4 py-2 rounded-full font-bold hover:bg-apple-blue-hover transition-colors">Iniciar Conversa</button>
                     </div>
-                )}
-            </div>
-            <div className="p-2 bg-gray-50/30 border-t border-border-color/30">
-                <button onClick={() => handleSend('')} className="w-full py-2 text-[10px] font-bold text-apple-blue uppercase hover:bg-white rounded-lg transition-colors">
-                    Enviar Mensagem Vazia
-                </button>
-            </div>
+                    <div className="max-h-80 overflow-y-auto custom-scrollbar p-1">
+                        <p className="px-4 py-2 text-[9px] font-bold text-gray-400 uppercase tracking-widest">Modelos</p>
+                        {templates.length > 0 ? (
+                            templates.map((tpl, idx) => (
+                                <button
+                                    key={idx}
+                                    onClick={() => handleSend(tpl.content)}
+                                    className="w-full text-left px-4 py-3 hover:bg-apple-blue/5 rounded-xl transition-all group"
+                                >
+                                    <p className="text-sm font-bold text-primary-text group-hover:text-apple-blue transition-colors">{tpl.title}</p>
+                                    <p className="text-xs text-secondary-text line-clamp-2 mt-1 leading-relaxed">{tpl.content}</p>
+                                </button>
+                            ))
+                        ) : (
+                            <div className="p-6 text-center">
+                                <WhatsAppIcon className="w-8 h-8 text-gray-200 mx-auto mb-2" />
+                                <p className="text-xs text-secondary-text mb-3">Nenhum modelo salvo.</p>
+                            </div>
+                        )}
+                    </div>
+                    <div className="p-2 bg-gray-50/30 border-t border-border-color/30">
+                        <button onClick={() => handleSend('')} className="w-full py-2 text-[10px] font-bold text-secondary-text uppercase hover:bg-white rounded-lg transition-colors">
+                            Apenas abrir conversa
+                        </button>
+                    </div>
+                </>
+            ) : (
+                <div className="p-4 animate-fadeIn">
+                    <div className="flex justify-between items-center mb-3">
+                        <p className="text-[10px] font-bold text-secondary-text uppercase tracking-wider">Nova Mensagem</p>
+                        <button onClick={() => setIsCustomMessageOpen(false)} className="text-[10px] text-gray-400 hover:text-primary-text">Voltar</button>
+                    </div>
+                    <textarea
+                        autoFocus
+                        value={customMessage}
+                        onChange={(e) => setCustomMessage(e.target.value)}
+                        placeholder="Escreva sua mensagem aqui..."
+                        className="w-full h-32 p-3 text-sm border border-border-color rounded-xl focus:ring-2 focus:ring-apple-blue outline-none resize-none bg-gray-50/50"
+                    />
+                    <div className="mt-3 flex gap-2">
+                        <button 
+                            onClick={() => handleSend(customMessage)}
+                            disabled={isSending || !customMessage.trim()}
+                            className="flex-1 bg-green-600 text-white py-2 rounded-xl text-xs font-bold hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        >
+                            {isSending ? 'Enviando...' : (
+                                <>
+                                    <WhatsAppIcon className="w-3 h-3" />
+                                    Enviar Agora
+                                </>
+                            )}
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

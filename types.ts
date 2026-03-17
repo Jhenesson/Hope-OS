@@ -326,5 +326,6 @@ export interface AppState {
     whatsappSendMethod?: 'browser' | 'extension' | 'api';
     whatsappApiUrl?: string;
     whatsappApiKey?: string;
+    whatsappSessionName?: string;
     googleTokens?: any;
 }

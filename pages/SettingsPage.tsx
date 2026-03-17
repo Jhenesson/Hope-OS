@@ -52,7 +52,11 @@ export const SettingsPage: React.FC = () => {
             const res = await fetch('/api/auth/google/status');
             const data = await res.json();
             setGoogleConnected(data.connected);
-            setOauthDebug(data);
+            // Only update debug info if it's actually debug data, 
+            // otherwise we might overwrite full debug info with just {connected: true}
+            if (data.redirectUri) {
+                setOauthDebug(data);
+            }
         } catch (error) {
             console.error('Error checking Google status:', error);
         }
@@ -557,7 +561,7 @@ create policy "Enable all access clients" on clients for all using (true) with c
                                             value={appState.whatsappApiUrl || ''} 
                                             onChange={(e) => setAppState(prev => ({ ...prev, whatsappApiUrl: e.target.value }))} 
                                             className="w-full px-3 py-2 border border-border-color rounded-lg focus:ring-2 focus:ring-apple-blue outline-none text-sm bg-white"
-                                            placeholder="https://sua-url.trycloudflare.com/api"
+                                            placeholder="https://waha.hoperiseprodutora.com/api"
                                         />
                                         <p className="text-[10px] text-secondary-text mt-1">A URL deve terminar em /api (sem a barra final).</p>
                                     </div>
@@ -570,6 +574,44 @@ create policy "Enable all access clients" on clients for all using (true) with c
                                             className="w-full px-3 py-2 border border-border-color rounded-lg focus:ring-2 focus:ring-apple-blue outline-none text-sm bg-white"
                                             placeholder="Sua chave de API"
                                         />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-secondary-text mb-1">Nome da Sessão (WAHA)</label>
+                                        <input 
+                                            type="text" 
+                                            value={appState.whatsappSessionName || 'default'} 
+                                            onChange={(e) => setAppState(prev => ({ ...prev, whatsappSessionName: e.target.value }))} 
+                                            className="w-full px-3 py-2 border border-border-color rounded-lg focus:ring-2 focus:ring-apple-blue outline-none text-sm bg-white"
+                                            placeholder="default"
+                                        />
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <button 
+                                            onClick={async () => {
+                                                try {
+                                                    const res = await fetch(`${appState.whatsappApiUrl}/sessions`, {
+                                                        headers: { 'X-Api-Key': appState.whatsappApiKey || '' }
+                                                    });
+                                                    if (res.ok) {
+                                                        const sessions = await res.json();
+                                                        const session = sessions.find((s: any) => s.name === (appState.whatsappSessionName || 'default'));
+                                                        if (session) {
+                                                            alert(`Conexão OK! Sessão "${session.name}" está ${session.status}.`);
+                                                        } else {
+                                                            alert(`Conectado à API, mas a sessão "${appState.whatsappSessionName || 'default'}" não foi encontrada.`);
+                                                        }
+                                                    } else {
+                                                        const errorData = await res.json().catch(() => ({}));
+                                                        alert(`Erro ao conectar: ${res.status} ${res.statusText}. ${errorData.message || ''}`);
+                                                    }
+                                                } catch (err: any) {
+                                                    alert(`Erro de rede: ${err.message}. Verifique se a URL está correta e se o servidor está online.`);
+                                                }
+                                            }}
+                                            className="flex-1 py-2 bg-white border border-apple-blue text-apple-blue rounded-lg text-sm font-bold hover:bg-blue-50 transition-all"
+                                        >
+                                            Testar Conexão API
+                                        </button>
                                     </div>
                                     <div className="p-3 bg-yellow-50 border border-yellow-100 rounded-lg space-y-2">
                                         <p className="text-[10px] text-yellow-700">
@@ -608,7 +650,7 @@ create policy "Enable all access clients" on clients for all using (true) with c
                                                     Cookie: {oauthDebug.cookieStatus}
                                                 </span>
                                                 <span className="text-[10px] text-secondary-text">
-                                                    Cookies Ativos: {oauthDebug.cookiesReceived.join(', ') || 'Nenhum'}
+                                                    Cookies Ativos: {oauthDebug.cookiesReceived?.join(', ') || 'Nenhum'}
                                                 </span>
                                                 {/* @ts-ignore */}
                                                 {oauthDebug.userAgent && (
